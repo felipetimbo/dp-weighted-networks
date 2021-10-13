@@ -1,2 +1,5 @@
+launch.json
 .history/*
+*.egg-info
+*.pyc
 env/
