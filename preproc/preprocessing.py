@@ -7,7 +7,7 @@ from numpy import genfromtxt
 
 np.random.seed(0)
 
-class preproc_data():
+class preprocessing():
     
     def __init__(self, datasets_names, optins_method, optins_perc):
         self.datasets_names = datasets_names
@@ -83,14 +83,18 @@ class preproc_data():
         msgs.log('Saving %s %s graph (%s %% optins)... ' % (dataset, 'affinity', str(optin_perc*100)))
         g.save(url + '/%s_affinity_%s.graphml' % (dataset, str(optin_perc)))
 
-
-
 if __name__ == "__main__":
     datasets_names = ['copenhagen-interaction',
-                    'reality-call']
-    optins_methods = ['random', 'affinity']
-    optins_perc = [.2, .4, .6, .8]
+                    'reality-call', 
+                    'contacts-dublin',
+                    'digg-reply',
+                    'high-school-contacts',
+                    'reality-call',
+                    'wiki-talk',
+                    'sx-stackoverflow']
+    optins_methods = ['random']
+    optins_perc = [.2]
 
-    preprocessing = preproc_data(datasets_names, optins_methods, optins_perc)
+    preprocessing = preprocessing(datasets_names, optins_methods, optins_perc)
     preprocessing.run()
     
