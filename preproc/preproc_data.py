@@ -65,12 +65,20 @@ class preproc_data():
         while reamining_optins > 0: 
             picked_optin = np.random.choice(perc_mask_ids, 1, replace=True)[0]
             neighbors = g.get_all_neighbors(picked_optin, vprops=[g.vp.optin])
-            neighbors_optout = neighbors[neighbors[:,1] == 0][:,0]
+            neighbors_optout = neighbors[neighbors[:,1] == 0][:,0]           
             if len(neighbors_optout) > 0: 
-                picked_to_be_a_new_optin = np.random.choice(neighbors_optout, 1, replace=False)[0]
-                g.vp.optin.fa[picked_to_be_a_new_optin] = True 
+
+                p = [] # prob of each optout be selected. as higher number of neighbors optin, higher the probability
+                for neighbor_optout in neighbors_optout:
+                    neighbor_neighbor_optout = g.get_all_neighbors(neighbor_optout, vprops=[g.vp.optin])
+                    num_neighbors_optin = len(neighbor_neighbor_optout[neighbor_neighbor_optout[:,1] == 1][:,0] )
+                    p.append(num_neighbors_optin)
+                p = p/np.sum(p)
+                
+                picked_to_be_a_new_optin = np.random.choice(neighbors_optout, 1, p=p, replace=False)[0]
                 perc_mask_ids = np.append(perc_mask_ids, np.array(picked_to_be_a_new_optin)) 
-                reamining_optins -= 1  
+                g.vp.optin.fa[picked_to_be_a_new_optin] = True 
+                reamining_optins -= 1    
 
         msgs.log('Saving %s %s graph (%s %% optins)... ' % (dataset, 'affinity', str(optin_perc*100)))
         g.save(url + '/%s_affinity_%s.graphml' % (dataset, str(optin_perc)))
