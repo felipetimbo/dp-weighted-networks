@@ -3,3 +3,4 @@ launch.json
 *.egg-info
 *.pyc
 env/
+data/
