@@ -2,7 +2,7 @@ import os
 import numpy as np
 import graph_tool.all as gt
 
-from utils import messages as msgs
+from dpwnets import utils
 from numpy import genfromtxt
 
 np.random.seed(0)
@@ -23,7 +23,7 @@ class preprocessing():
             ew = g.new_edge_property('int') # edge weight
             g.edge_properties['ew'] = ew 
 
-            msgs.log("Adding edges...")
+            utils.log_msg("Adding edges...")
             g.add_edge_list(edges, eprops=[g.ep.ew])
 
             for optin_method in self.optins_method: 
@@ -42,7 +42,7 @@ class preprocessing():
         optins_mask[optins_idx] = True
         g.vp.optin.fa = optins_mask
 
-        msgs.log('Saving %s %s graph (%s %% optins)... ' % (dataset, 'random', str(optin_perc*100)))
+        utils.log_msg('Saving %s %s graph (%s %% optins)... ' % (dataset, 'random', str(optin_perc*100)))
         g.save(url + '/%s_random_%s.graphml' % (dataset, str(optin_perc)))
 
     def optins_based_on_affinity_model(self, g, optin_perc, dataset, url):
@@ -80,19 +80,22 @@ class preprocessing():
                 g.vp.optin.fa[picked_to_be_a_new_optin] = True 
                 reamining_optins -= 1    
 
-        msgs.log('Saving %s %s graph (%s %% optins)... ' % (dataset, 'affinity', str(optin_perc*100)))
+        utils.log_msg('Saving %s %s graph (%s %% optins)... ' % (dataset, 'affinity', str(optin_perc*100)))
         g.save(url + '/%s_affinity_%s.graphml' % (dataset, str(optin_perc)))
 
 if __name__ == "__main__":
-    datasets_names = ['copenhagen-interaction',
-                    'reality-call', 
-                    'contacts-dublin',
-                    'digg-reply',
-                    'high-school-contacts',
-                    'reality-call',
-                    'wiki-talk',
-                    'sx-stackoverflow']
-    optins_methods = ['random']
+    datasets_names = [
+                    # 'enron',
+                    # 'copenhagen-interaction',
+                    # 'reality-call', 
+                    # 'contacts-dublin',
+                    # 'digg-reply',
+                    # 'high-school-contacts',
+                    # 'reality-call',
+                    'wiki-talk']
+                    # 'sx-stackoverflow']
+                    
+    optins_methods = ['affinity']       # random AND/OR affinity
     optins_perc = [.2]
 
     preprocessing = preprocessing(datasets_names, optins_methods, optins_perc)
