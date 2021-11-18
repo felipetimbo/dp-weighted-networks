@@ -35,6 +35,9 @@ def mape(y_true, y_pred):
     return error
 
 def mae(y_true, y_pred): 
+    if type(y_true) is float:
+        y_true = np.array([y_true])
+        y_pred = np.array([y_pred])
     if len(y_true) > 0:         
         error = np.mean( np.abs ( (y_true - y_pred) ))
     else:
@@ -43,6 +46,9 @@ def mae(y_true, y_pred):
     return error
 
 def mre(y_true, y_pred): 
+    if type(y_true) is float:
+        y_true = np.array([y_true])
+        y_pred = np.array([y_pred])
     mask_not_zeros = y_true > 0       
     error = np.mean( np.abs ( (y_pred[mask_not_zeros] - y_true[mask_not_zeros] )) / y_true[mask_not_zeros] )
     # msgs.log_msg('MRE = %f' % error )
