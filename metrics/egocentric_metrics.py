@@ -2,6 +2,7 @@ import numpy as np
 import graph_tool
 
 from graph_tool.centrality import betweenness, pagerank, eigenvector
+from graph_tool.topology import pseudo_diameter, similarity
 
 import graph_tool.all as gt
 
@@ -44,23 +45,55 @@ def calculate(G, metric):
         optins_arr = density_w(G)
     elif metric == 'density_w_all': 
         optins_arr = density_w(G, only_optins=False)
-    elif metric == 'page_rank': 
+    elif metric == 'pagerank': 
         optins_arr = page_rank(G)
-    elif metric == 'page_rank_all': 
+    elif metric == 'pagerank_all': 
         optins_arr = page_rank(G, only_optins=False)
+    elif metric == 'pagerank_w': 
+        optins_arr = page_rank_w(G)
+    elif metric == 'pagerank_w_all': 
+        optins_arr = page_rank_w(G, only_optins=False)
+    elif metric == 'betweenness_w': 
+        optins_arr = betweenness_w(G)
+    elif metric == 'betweenness_w_all': 
+        optins_arr = betweenness_w(G, only_optins=False)
+    elif metric == 'eigenvector_w': 
+        optins_arr = eigenvector_w(G)
+    elif metric == 'eigenvector_w_all': 
+        optins_arr = eigenvector_w(G, only_optins=False)
+    elif metric == 'local_clustering_w': 
+        optins_arr = local_clustering_w(G)
+    elif metric == 'local_clustering_w_all': 
+        optins_arr = local_clustering_w(G, only_optins=False)
+    elif metric == 'global_clustering_w': 
+        optins_arr = global_clustering_w(G)
+    elif metric == 'global_clustering_w_all': 
+        optins_arr = global_clustering_w(G, only_optins=False)
     elif metric == 'm':
         optins_arr = m(G)
     elif metric == 'total_w':
         optins_arr = total_w(G)
     elif metric == 'edges_w':
         optins_arr = edges_w(G)
-    elif metric == 'random_walk':
-        optins_arr = random_walk(G)
+    elif metric == 'diameter':
+        optins_arr = diameter(G)
+    elif metric == 'avg_shortest_path':
+        optins_arr = avg_shortest_path(G)
     
     else:
         optins_arr = None
 
     return optins_arr       
+
+def diameter(G):
+    return pseudo_diameter(G)[0]
+
+def avg_shortest_path(G):
+    dist = gt.shortest_distance(G)
+    return sum([sum(i) for i in dist])/(G.num_vertices()**2-G.num_vertices())
+
+def similar(G1, G2):
+    return similarity(G1, G2, eweight1=G1.ep.ew, eweight2=G2.ep.ew)
 
 def m(G):
     return [G.m()]
@@ -68,7 +101,10 @@ def m(G):
 def total_w(G):
     return [np.sum(G.ep.ew.fa)]
 
-def edges_w(G, only_optins=True):
+def edges_w(G):
+    return G.get_edges([G.ep.ew])
+
+def ego_edges_w(G, only_optins=True):
     E = []
 
     if only_optins:
@@ -282,7 +318,7 @@ def ego_betweenness_w(G):
 
     return np.array(B)
 
-def page_rank(G, only_optins=True):
+def ego_page_rank(G, only_optins=True):
     PR = [] 
 
     if only_optins:
@@ -314,19 +350,23 @@ def page_rank(G, only_optins=True):
 #     return np.array(PR)
 
 def page_rank_w(G, only_optins=True):
-    PR = [] 
-
     if only_optins:
-        vertices = G.optins() 
+        return np.array(pagerank(G, weight=G.ep.ew).fa.astype('int'))[G.optins()]
     else:
-        vertices = G.vertices()
+        return np.array(pagerank(G, weight=G.ep.ew).fa.astype('int'))
 
-    for v_id in vertices:
-        egonet = get_ego_network(G, v_id)
-        rank = pagerank(egonet)
-        PR.append(rank[v_id])
+def betweenness_w(G, only_optins=True):
+    if only_optins:
+        return np.array(betweenness(G, weight=G.ep.ew)[0].fa.astype('int'))[G.optins()]
+    else:
+        return np.array(betweenness(G, weight=G.ep.ew)[0].fa.astype('int'))
 
-    return np.array(PR)
+def eigenvector_w(G, only_optins=True):
+    if only_optins:
+        return np.array(eigenvector(G, weight=G.ep.ew)[1].fa.astype('int'))[G.optins()]
+    else:
+        return np.array(eigenvector(G, weight=G.ep.ew)[1].fa.astype('int'))
+
 
 def density(G, only_optins=True):
     D = [] # np.zeros((G.n()))
@@ -346,11 +386,17 @@ def density(G, only_optins=True):
     return np.array(D)
 
 
-def density_w(G, only_optins=True):
+def local_clustering_w(G, only_optins=True):
     if only_optins:
-        return np.array(graph_tool.clustering.local_clustering(G,weight=G.ep.ew).fa)[G.optins()]
+        return np.array(graph_tool.clustering.local_clustering(G,weight=G.ep.ew).fa.astype('int'))[G.optins()]
     else:
-        return np.array(graph_tool.clustering.local_clustering(G,weight=G.ep.ew).fa)
+        return np.array(graph_tool.clustering.local_clustering(G,weight=G.ep.ew).fa.astype('int'))
+
+def global_clustering_w(G, only_optins=True):
+    if only_optins:
+        return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))[G.optins()]
+    else:
+        return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))
 
 def get_ego_network(G, v, prune=False):
     edges_v = G.get_out_edges(v)
