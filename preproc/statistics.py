@@ -2,34 +2,34 @@ import os
 import numpy as np
 import graph_tool.all as gt
 
-from utils import messages as msgs
+from dpwnets import utils
 from numpy import genfromtxt
 from graph.wgraph import WGraph
 
 np.random.seed(0)
 
-class statistics():
+class Statistics():
     
-    def __init__(self, datasets_names, optins_method, optins_perc):
+    def __init__(self, datasets_names, optins_methods, optins_perc):
         self.datasets_names = datasets_names
-        self.optins_method = optins_method
+        self.optins_methods = optins_methods
         self.optins_perc = optins_perc
 
     def show(self):
         for dataset in self.datasets_names:
-            for optin_method in self.optins_method: 
+            for optin_method in self.optins_methods: 
                 for optin_perc in self.optins_perc:
                     url = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', dataset, '%s_%s_%s.graphml' % (dataset, optin_method, optin_perc )))
                     g = WGraph(url)
-                    msgs.log('======= ' + dataset + ' ======= ')
-                    msgs.log('vertices:     %s' % g.n())
-                    msgs.log('edges:        %s' % g.m())
-                    msgs.log('max degree:   %s' % g.max_degree())
-                    msgs.log('degrees avg:  %s' % g.avg_degrees())
-                    msgs.log('degrees perc: %s' % g.degrees_percentiles())
-                    msgs.log('max edge_w:   %s' % g.max_edge_w())
-                    msgs.log('edges_w avg:  %s' % g.avg_edges_w())
-                    msgs.log('edges_w perc: %s' % g.edges_w_percentiles())
+                    utils.log_msg('======= ' + dataset + ' ======= ')
+                    utils.log_msg('vertices:    %s' % g.n())
+                    utils.log_msg('edges:       %s' % g.m())
+                    utils.log_msg('max degree:  %s' % g.max_degree())
+                    utils.log_msg('degrees avg: %s' % g.avg_degrees())
+                    utils.log_msg('degrees dec: %s' % g.degrees_percentiles())
+                    utils.log_msg('max edge_w:  %s' % g.max_edge_w())
+                    utils.log_msg('edges_w avg: %s' % g.avg_edges_w())
+                    utils.log_msg('edges_w dec: %s' % g.edges_w_percentiles())
 
 if __name__ == "__main__":
     datasets_names = [
@@ -45,6 +45,6 @@ if __name__ == "__main__":
     optins_methods = ['random']
     optins_perc = [.2]
 
-    statistics = statistics(datasets_names, optins_methods, optins_perc)
+    statistics = Statistics(datasets_names, optins_methods, optins_perc)
     statistics.show()
     
