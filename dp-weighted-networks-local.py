@@ -90,11 +90,11 @@ class DPWeightedNets():
                                 edges_w_sum_noisy = dp_mechanisms.geometric([ns], geom_prob_mass_e2)[0]
                                 strengths_noisy.append(edges_w_sum_noisy)
 
-                                if d_noisy > 0:
+                                if d_noisy > 0 and d_noisy < ego_graph.max_degree():
                                     
                                     edges_w = neighbors_v[:,2] 
                                     edges_w_noisy = dp_mechanisms.geometric(edges_w, geom_prob_mass_e1)
-                                    top_d_edges_w_noisy, num_remaining_edges, non_zero_edges_w_filtered_mask = tools.high_pass_filter(edges_w_noisy, e1, len_optouts, d)                                   
+                                    top_d_edges_w_noisy, num_remaining_edges, non_zero_edges_w_filtered_mask = tools.high_pass_filter(edges_w_noisy, e1, len_optouts, d_noisy)                                   
 
                                     edges_w_ajusted = tools.min_l2_norm(top_d_edges_w_noisy, edges_w_sum_noisy, num_steps=10)
 
@@ -130,20 +130,20 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    'high-school-contacts']
-                    # 'copenhagen-interaction',
-                    # 'reality-call', 
-                    # 'contacts-dublin',
-                    # 'digg-reply'
+                    'high-school-contacts',
+                    'copenhagen-interaction',
+                    'reality-call', 
+                    'contacts-dublin']
+                    # 'digg-reply']
                     # 'wiki-talk',
                     # 'sx-stackoverflow']
 
     optins_methods = ['affinity']
     optins_perc = [.2]
 
-    es = [ .1, 1, 2 ]
+    es = [ .1, 2 ]
 
-    runs = 5
+    runs = 3
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
     exp.run()
