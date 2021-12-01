@@ -7,6 +7,7 @@ import graph_tool.spectral as sp
 
 from dpwnets import utils
 from graph.wgraph import WGraph
+from graph_tool.util import find_edge
 
 np.random.seed(1)
 
@@ -97,6 +98,26 @@ def min_l2_norm(edges_w, desired_sum, num_steps=500, min_value=1):
 
     return new_edges_w
 
+def min_l2_norm_ns(edges, nss):
+    b = np.array(nss)
+    n = len(nss)
+    m = len(edges)
+    A = np.zeros((n+m, m), dtype=int)
+    for e, i in zip(edges,range(m)):
+        A[e[0].astype('int'),e[1].astype('int')] = 1 
+        A[e[1].astype('int'),e[0].astype('int')] = 1 
+        A[n+i, i] = 1
+        b = np.append(b, e[2]) 
+
+    x = cp.Variable(m)
+    objective = cp.Minimize(cp.sum_squares(A @ x - b))
+    constraints = [x >= 1 ]
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
+    
+    new_edges_w = np.clip(np.around(x.value), 0, np.max(np.around(x.value)))
+    return new_edges_w
+
 def sample_graph(g, edges_w_noisy_non_zero, edges_w_noisy_zeros_pp):
 
     edges_w_noisy_zeros = edges_w_noisy_zeros_pp[np.nonzero(edges_w_noisy_zeros_pp)]
@@ -181,7 +202,7 @@ def get_edges_from_degree_sequence(g, ds):
 
     probs = ds/np.sum(ds)
 
-    i = 20 # number of attempts the algorithm can run. if it can not find a solution, ends the while
+    i = 20    # number of attempts the algorithm can run. if it can not find a solution, ends the while
     edges_not_allocated = 0
     while remaining_edges > 0: 
         if i > 0:
@@ -294,35 +315,77 @@ def remove_edges_with_lower_weights_and_adjust(g, m, sum_w):
     else:
         return g
 
-def adjust_edge_weights_based_on_ns(g, ns):
+
+def adjust_edge_weights_based_on_ns(g, nss):
+
+    mask_out_out = g.edges_out_out()
+    g_out_out = WGraph(G=gt.GraphView(g, efilt=mask_out_out), prune=True)
+
+    av = g.new_edge_property('bool') # already visited
+    g.edge_properties['av'] = av
+
+    optins = g.optins()
+    optouts = g.optouts()
+    # nss = g.node_strengths()
+
+    new_edges = np.empty((0,3), int)
+
+    for v in optins:
+        neighbors_v = g.get_out_edges(v, [g.ep.ew, g.edge_index] )
+        if len(neighbors_v) > 0:
+            edges_w = neighbors_v[:,2] 
+            edges_w_adjusted = min_l2_norm(edges_w, nss[v], num_steps=10)
+            edges_adjusted = np.concatenate((neighbors_v[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
+            new_edges = np.append(new_edges, edges_adjusted, axis=0)  
+            nss[neighbors_v[:,1]] = nss[neighbors_v[:,1]] - edges_w_adjusted
+            g.ep.av.fa[neighbors_v[:,3]] = 1
+
+    degrees_out_out = g_out_out.degrees()[optouts]
+    optouts_sorted = np.argsort(degrees_out_out)
+
+    for o in optouts_sorted:
+        v = optouts[o]
+        neighbors_v_not_filtered = g.get_out_edges(v, [g.ep.ew, g.ep.av, g.edge_index] )
+        neighbors_v = neighbors_v_not_filtered[neighbors_v_not_filtered[:,3] == 0]
+        if len(neighbors_v) > 0:
+            edges_w = neighbors_v[:,2] 
+            edges_w_adjusted = min_l2_norm(edges_w, nss[v], num_steps=10)
+            edges_adjusted = np.concatenate((neighbors_v[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
+            new_edges = np.append(new_edges, edges_adjusted, axis=0)  
+            nss[neighbors_v[:,1]] = nss[neighbors_v[:,1]] - edges_w_adjusted
+            g.ep.av.fa[neighbors_v[:,4]] = 1
+
+    return new_edges
+
+# def adjust_edge_weights_based_on_ns(g, ns):
     
-    n = g.n()
-    upper_triangle_idx = np.triu_indices(n, k=1)
-    edges_w_matrix = sp.adjacency(g, weight=g.ep.ew).toarray()
+#     n = g.n()
+#     upper_triangle_idx = np.triu_indices(n, k=1)
+#     edges_w_matrix = sp.adjacency(g, weight=g.ep.ew).toarray()
 
-    # edges_w_triu = np.zeros([n,n])
-    # for i in range(n):
-    #     for j in range(n):
-    #         if i < j:
-    #             edges_w_triu[i][j] = edges_w_matrix[i][j]
+#     # edges_w_triu = np.zeros([n,n])
+#     # for i in range(n):
+#     #     for j in range(n):
+#     #         if i < j:
+#     #             edges_w_triu[i][j] = edges_w_matrix[i][j]
 
-    x = cp.Variable(( n, n ))
-    objective = cp.Minimize(cp.sum_squares( x - edges_w_matrix ))
+#     x = cp.Variable(( n, n ))
+#     objective = cp.Minimize(cp.sum_squares( x - edges_w_matrix ))
 
-    constraints_string = '[ x >= 0, x == x.T, ' 
-    for i in range(n):
-        constraints_string += 'sum(x[%s]) == ns[%s] ,' % (i,i)
-        constraints_string += 'x[%s][%s] == 0 ,' % (i,i)
-    constraints_string = constraints_string[:-1]
-    constraints_string += ' ]'
-    constraints = eval(constraints_string)
+#     constraints_string = '[ x >= 0, x == x.T, ' 
+#     for i in range(n):
+#         constraints_string += 'sum(x[%s]) == ns[%s] ,' % (i,i)
+#         constraints_string += 'x[%s][%s] == 0 ,' % (i,i)
+#     constraints_string = constraints_string[:-1]
+#     constraints_string += ' ]'
+#     constraints = eval(constraints_string)
 
-    prob = cp.Problem(objective, constraints)
-    prob.solve()
+#     prob = cp.Problem(objective, constraints)
+#     prob.solve()
 
-    new_edges_w_rounded = np.abs(np.around(x.value))
-    new_edges_w = np.clip(new_edges_w_rounded, 0, None)
+#     new_edges_w_rounded = np.abs(np.around(x.value))
+#     new_edges_w = np.clip(new_edges_w_rounded, 0, None)
 
-    new_edges_w_arr = new_edges_w[upper_triangle_idx]
+#     new_edges_w_arr = new_edges_w[upper_triangle_idx]
 
-    print(1)
+#     print(1)
