@@ -2,7 +2,7 @@ import numpy as np
 import graph_tool
 
 from graph_tool.centrality import betweenness, pagerank, eigenvector
-from graph_tool.topology import pseudo_diameter, similarity
+from graph_tool.topology import pseudo_diameter, similarity, shortest_distance
 
 import graph_tool.all as gt
 
@@ -79,18 +79,36 @@ def calculate(G, metric):
         optins_arr = diameter(G)
     elif metric == 'avg_shortest_path':
         optins_arr = avg_shortest_path(G)
-    
+    elif metric == 'avg_shortest_path_w':
+        optins_arr = avg_shortest_path_w(G)
+    elif metric == 'density_G':
+        optins_arr = density_G(G) 
+    elif metric == 'avg_degree':
+        optins_arr = avg_degree(G)
+    elif metric == 'avg_edges_w':
+        optins_arr = avg_edges_w(G)
     else:
         optins_arr = None
 
     return optins_arr       
 
 def diameter(G):
-    return pseudo_diameter(G)[0]
+    return G.diameter()
 
 def avg_shortest_path(G):
-    dist = gt.shortest_distance(G)
-    return sum([sum(i) for i in dist])/(G.num_vertices()**2-G.num_vertices())
+    return G.avg_shortest_path()
+
+def avg_shortest_path_w(G):
+    return G.avg_shortest_path_w()
+
+def density_G(G):
+    return G.density()
+
+def avg_degree(G):
+    return G.avg_degrees()
+
+def avg_edges_w(G):
+    return G.avg_edges_w()
 
 def similar(G1, G2):
     return similarity(G1, G2, eweight1=G1.ep.ew, eweight2=G2.ep.ew)
