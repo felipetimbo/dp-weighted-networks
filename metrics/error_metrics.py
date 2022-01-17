@@ -50,7 +50,7 @@ def mre(y_true, y_pred):
         y_true = np.array([y_true])
         y_pred = np.array([y_pred])
     mask_not_zeros = y_true > 0       
-    error = np.mean( np.abs ( (y_pred[mask_not_zeros] - y_true[mask_not_zeros] )) / y_true[mask_not_zeros] )
+    error = np.mean( np.abs ( (y_pred[mask_not_zeros].astype('float64') - y_true[mask_not_zeros].astype('float64') )) / y_true[mask_not_zeros].astype('float64') )
     # msgs.log_msg('MRE = %f' % error )
     return error
 

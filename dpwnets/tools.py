@@ -4,12 +4,21 @@ import numpy as np
 import graph_tool as gt
 import cvxpy as cp
 import graph_tool.spectral as sp
+import os
 
-from dpwnets import utils
+import matplotlib
+import matplotlib.pyplot as plt
+
+
+from dpwnets import (utils, graphics)
 from graph.wgraph import WGraph
 from graph_tool.util import find_edge
 
-np.random.seed(1)
+np.random.seed(0)
+
+kwargs = {'linewidth' : 3.5}
+font = {'weight' : 'normal', 'size'   : 24}
+matplotlib.rc('font', **font)
 
 def high_pass_filter(arr, eps, max_len, threshold):
 
@@ -63,11 +72,25 @@ def gradient_descent(init, steps, grad, laplaced_sum, proj=lambda x: x, min_valu
         xs = [xs_next]
     return xs
 
+def gradient_descent2(init, steps, grad, proj):
+    xs = [init]
+    for step in steps:
+        xs.append( proj( xs[-1] - step * grad(xs[-1])) )
+    return xs
+
 def l2(x, y):
     return np.sum(np.power( ( y - x ),2) )
 
+def least_squares(A, b, x, num_lines):
+    """Least squares objective."""
+    return (0.5/num_lines) * np.linalg.norm(A.dot(x)-b)**2
+
 def l2_gradient(x, y):
     return 2*(y - x)
+
+def least_squares_gradient(A, b, x, num_lines):
+    """Gradient of least squares objective at x."""
+    return A.T.dot(A.dot(x)-b)/num_lines
 
 def proj(x, desired_sum, min_value=1):
     """Projection of x onto the subspace"""
@@ -75,6 +98,12 @@ def proj(x, desired_sum, min_value=1):
     factor = (current_sum - desired_sum)/len(x)
     projection = np.around(np.clip(x - factor, min_value, None))     
     
+    return projection
+
+def proj2(x, min_value=1):
+    """Projection of x onto the subspace"""
+    projection = np.around(np.clip(x, min_value, None))     
+
     return projection
 
 def min_l2_norm(edges_w, desired_sum, num_steps=500, min_value=1):
@@ -98,19 +127,61 @@ def min_l2_norm(edges_w, desired_sum, num_steps=500, min_value=1):
 
     return new_edges_w
 
-def min_l2_norm_ns(edges, nss):
+def error_plot(ys, yscale='log'):
+    plt.figure(figsize=(8, 8))
+    plt.xlabel('Step')
+    plt.ylabel('Error')
+    plt.yscale(yscale)
+    plt.plot(range(len(ys)), ys, **kwargs)
+    path = "./a.png"
+    dir_path = os.path.dirname(os.path.realpath(path))
+    os.makedirs(dir_path, exist_ok=True)
+    plt.savefig(path, dpi=900)
+
+def min_l2_norm2(edges, nss, weight=1, num_steps=500, min_value=1):
+    
+    b = np.array(nss)
+    n = len(nss)
+    m = len(edges)
+
+    num_lines = n+m
+
+    A = np.zeros((num_lines, m), dtype=int)
+    # A = np.zeros((n, m), dtype=int)
+
+    for e, i in zip(edges,range(m)):
+        A[e[0].astype('int'),e[1].astype('int')] = 1 
+        A[e[1].astype('int'),e[0].astype('int')] = 1 
+        A[n+i, i] = weight 
+        b = np.append(b, e[2] * weight) 
+
+    x0 = edges[:,2]
+
+    alpha = 10.0
+    
+    objective = lambda x: least_squares(A, b, x, num_lines)
+    gradient = lambda x: least_squares_gradient(A, b, x, num_lines)
+    xs = gradient_descent2(x0, [alpha]*num_steps, gradient, proj2)
+    error_plot([objective(x) for x in xs])
+    new_edges_w = xs[-1].astype(int)
+
+    return new_edges_w
+
+def min_l2_norm_ns(edges, nss, weight=1):
+
     b = np.array(nss)
     n = len(nss)
     m = len(edges)
     A = np.zeros((n+m, m), dtype=int)
+    
     for e, i in zip(edges,range(m)):
         A[e[0].astype('int'),e[1].astype('int')] = 1 
         A[e[1].astype('int'),e[0].astype('int')] = 1 
-        A[n+i, i] = 1
-        b = np.append(b, e[2]) 
+        A[n+i, i] = weight 
+        b = np.append(b, e[2] * weight) 
 
     x = cp.Variable(m)
-    objective = cp.Minimize(cp.sum_squares(A @ x - b))
+    objective = cp.Minimize(cp.sum_squares(A@x - b))
     constraints = [x >= 1 ]
     prob = cp.Problem(objective, constraints)
     prob.solve()

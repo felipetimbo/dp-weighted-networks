@@ -1,17 +1,26 @@
 from abc import ABC, abstractmethod
+from graph_tool.topology import shortest_distance
 
 import graph_tool as gt
 import numpy as np
 
 class WGraph(object):
 
-    def __init__(self, path=None, G=None, prune=None):
+    def __init__(self, path=None, G=None, prune=None, compute_distances=False):
         if path is not None:
             self.G = gt.load_graph(path)
         elif prune is not None:
             self.G = gt.Graph(G, directed=False, prune=prune)
         else:
             self.G = gt.Graph(G, directed=False)
+        if compute_distances:
+            distances = np.array([], dtype='int')
+            for v in self.G.vertices():
+                s_paths = shortest_distance(self.G, v).fa.astype('int')
+                s_paths = s_paths[s_paths != 2147483647]
+                s_paths = s_paths[s_paths != 0]
+                distances = np.append(distances, s_paths, axis=0)  
+            self.distances = distances
 
     def n(self):
         return self.G.num_vertices()
@@ -95,6 +104,24 @@ class WGraph(object):
         targets_optin = self.G.vp.optin.a[targets].astype(bool)
         optin_edges_mask = sources_optin & targets_optin
         return optin_edges_mask
+
+    def diameter(self):
+        return max(self.distances)
+
+    def avg_shortest_path(self):
+        return np.mean(self.distances)
+
+    def avg_shortest_path_w(self):
+        d = np.array([], dtype='int')
+        for v in self.G.vertices():
+            s_paths = shortest_distance(self.G, v, weights=self.G.ep.ew).fa.astype('int')
+            s_paths = s_paths[s_paths != 2147483647]
+            s_paths = s_paths[s_paths != 0]
+            d = np.append(d, s_paths, axis=0)  
+        return np.mean(d)
+
+    def density(self):
+        return 2*self.m()/self.n()*(self.n() - 1)
 
     def __getattr__(self, *args, **kwargs):
         return getattr(self.G, *args, **kwargs)

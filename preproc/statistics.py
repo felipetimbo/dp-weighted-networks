@@ -33,16 +33,16 @@ class Statistics():
 
 if __name__ == "__main__":
     datasets_names = [
-                    'high-school-contacts',
-                    'copenhagen-interaction',
-                    'reality-call', 
-                    'contacts-dublin',
-                    'digg-reply',
-                    'reality-call',
-                    'wiki-talk',
-                    'sx-stackoverflow']
+                    'enron' ]
+                    # 'copenhagen-interaction',
+                    # 'reality-call', 
+                    # 'contacts-dublin',
+                    # 'digg-reply',
+                    # 'reality-call',
+                    # 'wiki-talk',
+                    # 'sx-stackoverflow']
 
-    optins_methods = ['random']
+    optins_methods = ['affinity']
     optins_perc = [.2]
 
     statistics = Statistics(datasets_names, optins_methods, optins_perc)

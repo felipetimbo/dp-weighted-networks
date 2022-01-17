@@ -77,6 +77,8 @@ def calculate(G, metric):
         optins_arr = edges_w(G)
     elif metric == 'diameter':
         optins_arr = diameter(G)
+    elif metric == 'diam':
+        optins_arr = diam(G)
     elif metric == 'avg_shortest_path':
         optins_arr = avg_shortest_path(G)
     elif metric == 'avg_shortest_path_w':
@@ -94,6 +96,9 @@ def calculate(G, metric):
 
 def diameter(G):
     return G.diameter()
+
+def diam(G):
+    return pseudo_diameter(G)[0]
 
 def avg_shortest_path(G):
     return G.avg_shortest_path()
@@ -369,21 +374,21 @@ def ego_page_rank(G, only_optins=True):
 
 def page_rank_w(G, only_optins=True):
     if only_optins:
-        return np.array(pagerank(G, weight=G.ep.ew).fa.astype('int'))[G.optins()]
+        return np.array(pagerank(G).fa.astype('float'))[G.optins()]
     else:
-        return np.array(pagerank(G, weight=G.ep.ew).fa.astype('int'))
+        return np.array(pagerank(G).fa.astype('float'))
 
 def betweenness_w(G, only_optins=True):
     if only_optins:
-        return np.array(betweenness(G, weight=G.ep.ew)[0].fa.astype('int'))[G.optins()]
+        return np.array(betweenness(G)[0].fa.astype('float'))[G.optins()]
     else:
-        return np.array(betweenness(G, weight=G.ep.ew)[0].fa.astype('int'))
+        return np.array(betweenness(G)[0].fa.astype('float'))
 
 def eigenvector_w(G, only_optins=True):
     if only_optins:
-        return np.array(eigenvector(G, weight=G.ep.ew)[1].fa.astype('int'))[G.optins()]
+        return np.array(eigenvector(G)[1].fa.astype('float'))[G.optins()]
     else:
-        return np.array(eigenvector(G, weight=G.ep.ew)[1].fa.astype('int'))
+        return np.array(eigenvector(G)[1].fa.astype('float'))
 
 
 def density(G, only_optins=True):
@@ -412,9 +417,9 @@ def local_clustering_w(G, only_optins=True):
 
 def global_clustering_w(G, only_optins=True):
     if only_optins:
-        return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))[G.optins()]
+        return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))[0]
     else:
-        return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))
+        return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))[0]
 
 def get_ego_network(G, v, prune=False):
     edges_v = G.get_out_edges(v)

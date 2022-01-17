@@ -2,6 +2,8 @@ import numpy as np
 
 variance = 100000
 
+np.random.seed(1)
+
 def geom_prob_mass(eps, sensitivity=1):
     a = np.exp(-eps/sensitivity)
     weights = np.array(range(-variance, variance))
@@ -12,6 +14,7 @@ def geom_prob_mass(eps, sensitivity=1):
     return prob_mass
 
 def geometric(arr, prob_mass):
+    # np.random.seed(3)
     noisy_arr = arr + np.random.choice(a=len(prob_mass), size=len(arr), p=prob_mass, replace=True) - variance
     return np.array(noisy_arr)
 
