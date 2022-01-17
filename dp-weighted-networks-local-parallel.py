@@ -160,20 +160,22 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    'high-school-contacts',
-                    'copenhagen-interaction',
-                    'reality-call', 
-                    'contacts-dublin',
-                    'digg-reply']
-                    # 'wiki-talk']
+                    #  'high-school-contacts',
+                    #  'copenhagen-interaction'
+                    # 'reality-call'
+                    #  'contacts-dublin'
+                        'digg-reply', 
+                        'enron' 
+                    # 'wiki-talk'
+                    ]
 
     optins_methods = ['affinity']
     optins_perc = [.2]
 
-    es = [ 1 ]
+    es = [ .1, 1, 2 ]
 
-    runs = 5
-    num_threads = 8
+    runs = 2
+    num_threads = 6
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, num_threads, runs)
     exp.run()

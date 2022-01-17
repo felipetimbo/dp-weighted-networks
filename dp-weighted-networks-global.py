@@ -76,11 +76,12 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    'high-school-contacts',
-                    'copenhagen-interaction',
-                    'reality-call', 
-                    'contacts-dublin',
-                    'digg-reply']
+                    # 'high-school-contacts',
+                    # 'copenhagen-interaction',
+                    # 'reality-call', 
+                    # 'contacts-dublin',
+                    # 'digg-reply']
+                    'enron' ]
                     # 'wiki-talk',
                     # 'sx-stackoverflow']
 
