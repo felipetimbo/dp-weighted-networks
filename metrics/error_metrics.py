@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy
 
 from metrics import egocentric_metrics
 from sklearn.metrics import mean_absolute_error
@@ -23,6 +24,8 @@ def calculate(error_metric, y_true, y_pred, k=10):
         error = absolute(y_true, y_pred)
     elif error_metric == 'op':
         error = op(y_true, y_pred, k)
+    elif error_metric == 'kld':
+        error = kld(y_true, y_pred)
     else:
         error = None
 
@@ -153,6 +156,27 @@ def calculate_error_edges_w( error_metric, edges_true, edges_pred ):
         error = calculate(error_metric, y_true, y_pred)
 
     return error
+
+def kld(y_true, y_pred):
+    num_parts = 10
+    y_true = np.sort(y_true)
+    y_pred = np.sort(y_pred)
+    y_true_s = np.array_split(y_true, num_parts)
+    y_pred_s = np.array_split(y_pred, num_parts)
+    
+    p = []
+    q = []
+    for s in y_true_s:
+        p.append(sum(s))
+    for s in y_pred_s:
+        q.append(sum(s))
+
+    # p, bins = np.histogram(y_true, bins=20)
+    P = p/np.sum(p)
+    # q, _ = np.histogram(y_pred, bins=bins)
+    Q = p/np.sum(q)
+    kld_value = np.abs(np.sum(np.where( (P != 0) & (Q != 0), P * np.log(P / Q), 0)))
+    return kld_value
 
     # https://pandas.pydata.org/pandas-docs/stable/user_guide/merging.html
 

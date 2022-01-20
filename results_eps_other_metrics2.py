@@ -32,7 +32,7 @@ class ResultsDPWeightedNets():
             for optin_method in self.optins_methods: 
                 for optin_perc in self.optins_perc:
                     url = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, '%s_%s_%s.graphml' % (dataset, optin_method, optin_perc )))
-                    g = WGraph(url, compute_distances=True)
+                    g = WGraph(url, compute_distances=False)
 
                     ego_metrics_true = {}
 
@@ -74,7 +74,7 @@ class ResultsDPWeightedNets():
                                    
                         for r in range(self.runs):    
                             path_g1 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ds_ns_ins.graphml' % ( optin_method, optin_perc, e, r )))
-                            g1 = WGraph(path_g1, compute_distances=True)
+                            g1 = WGraph(path_g1, compute_distances=False)
 
                             # path_g2 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ds_ns_ins.graphml' % ( optin_method, optin_perc, e, r )))
                             # g2 = WGraph(path_g2, compute_distances=True)
@@ -161,13 +161,14 @@ class ResultsDPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    #   'copenhagen-interaction',
-                    #   'high-school-contacts',
-                    #   'reality-call', 
-                       'contacts-dublin',
-                    #    'digg-reply', 
-                    #   'enron' 
+                       # 'copenhagen-interaction',
+                       # 'high-school-contacts',
+                       # 'reality-call', 
+                       # 'contacts-dublin',
+                        'digg-reply', 
+                        'enron' 
                       ] 
+
                     # 'wiki-talk',
                     # 'sx-stackoverflow']
 
@@ -178,43 +179,12 @@ if __name__ == "__main__":
 
     ego_metrics = [ 
                     ## global ##
-                    'diameter',
-                    'avg_shortest_path',
-                    # 'avg_shortest_path_w',
-                    # 'density_G',
+                    'diam',
                     'avg_degree',
-                    # 'avg_edges_w'
-
+                    'avg_edges_w',
+                    'global_clustering_w',
                     'similarity'
                     ]
-
-                    # ## ego ##
-                    #   'degree',
-                    # #   'num_edges_in_alters',
-                    #   'node_strength',
-                    #   'node_edges_weight_avg',  
-                    #   'sum_of_2_hop_edges',
-                    #   'degree_all',
-                    # #   'num_edges_in_alters_all',
-                    #   'node_strength_all', 
-                    #   'node_edges_weight_avg_all', 
-                    #   'sum_of_2_hop_edges_all']
-
-                    # ## centrality ##
-                    #  'pagerank_w',
-                    #  'betweenness_w',
-                    #  'eigenvector_w',
-                    #  'pagerank_w_all',
-                    #  'betweenness_w_all',
-                    #  'eigenvector_w_all',
-
-                    # ## clustering ##
-                    #  'local_clustering_w',
-                    #  'global_clustering_w',
-                    #  'local_clustering_w_all',
-                    #  'global_clustering_w_all'
-
-                    # ]
 
     runs = 3
 

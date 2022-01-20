@@ -197,7 +197,7 @@ if __name__ == "__main__":
 
                     # ]
 
-    runs = 2
+    runs = 5
 
     exp = ResultsDPWeightedNets(datasets_names, optins_methods, optins_perc, es, error_met, ego_metrics, runs)
     exp.run()
