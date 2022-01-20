@@ -83,9 +83,10 @@ class DPWeightedNets():
                             g_prime = tools.build_g_from_edges(g, edges_in_g_prime, add_optin_edges=False)
 
                             ds_remaining = ds_ajusted - g_prime.degrees()
-                            ds_remaining_adjusted = tools.min_l2_norm(ds_remaining, np.sum(ds_remaining), num_steps=10, min_value=0)
-
-                            new_edges_before_ns_adjustment = tools.get_edges_from_degree_sequence(g_prime, ds_remaining_adjusted)  
+                            # ds_remaining_adjusted = tools.min_l2_norm(ds_remaining, np.sum(ds_remaining), num_steps=10, min_value=0) 
+                            ds_remaining_adjusted = tools.min_l2_norm3(ds_remaining, (len(top_m_edges_w_noisy) - num_remaining_edges)*2, num_steps=100, min_value=0) 
+                        
+                            new_edges_before_ns_adjustment = tools.get_edges_from_degree_sequence2(g_prime, ds_remaining_adjusted)  
                             new_edges_and_weights = np.concatenate((new_edges_before_ns_adjustment, np.array([top_m_edges_w_noisy[num_remaining_edges:len(top_m_edges_w_noisy)]]).T ), axis=1)
                             all_edges_before_ns_adjustment = np.append(edges_in_g_prime, new_edges_and_weights, axis=0) 
 
@@ -112,27 +113,27 @@ class DPWeightedNets():
                             # print("%.2f" % float(error_metrics.mre(egocentric_metrics.sum_of_2_hop_edges(g), egocentric_metrics.sum_of_2_hop_edges(new_g)  )))
 
                             utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_global_ds_ns_ins.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_global_ds_ns_ins2.graphml" % ( dataset , optin_method, optin_perc, e, r)     
                             new_g.save(path_graph)                            
 
 if __name__ == "__main__":
     datasets_names = [
-                    'high-school-contacts',
-                    'copenhagen-interaction',
-                    'reality-call',
-                    'contacts-dublin'
-                    # 'digg-reply'
+                     'high-school-contacts',
+                    #  'copenhagen-interaction',
+                    #  'reality-call',
+                    #  'contacts-dublin',
+                    #  'digg-reply',
                     #  'enron',
-                    #  'wiki-talk',
+                    # 'wiki-talk'
                     # 'sx-stackoverflow'
                     ]
 
     optins_methods = ['affinity']
     optins_perc = [.2]
 
-    es = [ .5 ]
+    es = [ .5, 1, 2 ]
 
-    runs = 3
+    runs = 5
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
     exp.run()

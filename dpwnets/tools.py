@@ -127,6 +127,32 @@ def min_l2_norm(edges_w, desired_sum, num_steps=500, min_value=1):
 
     return new_edges_w
 
+def min_l2_norm3(edges_w, desired_sum, num_steps=500, min_value=1):
+    x0 = edges_w.copy()
+
+    alpha = 0.01
+    gradient = lambda y: l2_gradient(edges_w, y)
+    xs = gradient_descent(x0, [alpha]*num_steps, gradient, desired_sum, proj, min_value)
+    new_edges_w = xs[-1].astype(int)
+
+    exceding_units = int(np.abs(desired_sum - np.sum(new_edges_w)))
+
+    while exceding_units > 0:
+        edges_w_different_1_pos = np.where(new_edges_w != min_value)[0]
+        if len(edges_w_different_1_pos) >= exceding_units:
+            edges_w_picked = edges_w_different_1_pos[np.random.choice(len(edges_w_different_1_pos), exceding_units, replace=False)]
+            exceding_units -= exceding_units
+        else:
+            edges_w_picked = edges_w_different_1_pos[np.random.choice(len(edges_w_different_1_pos), len(edges_w_different_1_pos), replace=False)]
+            exceding_units -= len(edges_w_different_1_pos)
+
+        if (desired_sum - np.sum(new_edges_w)) < 0:
+            new_edges_w[edges_w_picked] -= 1
+        else: 
+            new_edges_w[edges_w_picked] += + 1
+
+    return new_edges_w
+
 def error_plot(ys, yscale='log'):
     plt.figure(figsize=(8, 8))
     plt.xlabel('Step')
@@ -306,6 +332,110 @@ def get_edges_from_degree_sequence(g, ds):
     utils.log_msg('random edges created in degree sequence algorithm: %s' % str(edges_not_allocated))
     return existing_edges[len_existing_edges:]        
 
+def get_edges_from_degree_sequence2(g, degree_seq):
+
+    ds = degree_seq.copy()
+
+    non_optins_pos = g.vp.optin.fa == 0
+    remaining_edges = np.sum(ds)/2
+    # existing_edges = g.get_edges()
+    existing_edges = set(map(tuple, g.get_edges()))  
+
+    random_edges_to_be_created = 0
+    new_edges = np.empty((0,2), int)
+
+    while remaining_edges > 0: 
+        node_with_highest_degree_pos = np.argmax(ds)
+        degree_of_highest = ds[node_with_highest_degree_pos]
+
+        ds_probs = ds.copy()
+        ds_probs[node_with_highest_degree_pos] = 0
+
+        # if already exists
+        ds_already_existing = np.array(sum([x for x in existing_edges if node_with_highest_degree_pos in x], ()))
+        ds_already_existing = ds_already_existing[ds_already_existing != node_with_highest_degree_pos]
+        if len(ds_already_existing) > 0:
+            ds_probs[ds_already_existing] = 0
+
+        # if opt-in
+        if ~non_optins_pos[node_with_highest_degree_pos]:
+            ds_probs[~non_optins_pos] = 0
+
+        len_ds_probs_still_highers_than_0 = np.sum(ds_probs > 0 )
+        if len_ds_probs_still_highers_than_0 >= degree_of_highest:
+            nodes_to_create_edge = ds_probs.argsort()[-degree_of_highest:][::-1]
+            random_edges_to_be_created_node_x = 0
+        else: 
+            if len_ds_probs_still_highers_than_0 > 0:
+                nodes_to_create_edge = ds_probs.argsort()[-len_ds_probs_still_highers_than_0:][::-1]
+            random_edges_to_be_created_node_x = (degree_of_highest - len_ds_probs_still_highers_than_0)
+
+        num_created_edges = min(len_ds_probs_still_highers_than_0, degree_of_highest)
+
+        ds[node_with_highest_degree_pos] = 0
+
+        if len_ds_probs_still_highers_than_0 > 0:
+            ds[nodes_to_create_edge] -= 1
+
+            orig = (np.ones(num_created_edges)*node_with_highest_degree_pos).astype(int)
+            edges_to_be_added = np.stack((orig, nodes_to_create_edge ), axis=1)
+            edges_to_be_added.sort()
+
+            new_edges = np.append( new_edges, edges_to_be_added , axis=0 )
+            existing_edges = set(map(tuple, existing_edges)).union(set(map(tuple, edges_to_be_added)))
+
+        remaining_edges -= (num_created_edges +  random_edges_to_be_created_node_x/2 ) 
+        random_edges_to_be_created += random_edges_to_be_created_node_x/2
+
+    utils.log_msg('random edges created in degree sequence algorithm: %s' % str(random_edges_to_be_created))
+    
+    if random_edges_to_be_created > 0:
+        random_edges = sample_random_edges(g, int(random_edges_to_be_created), existing_edges, non_optins_pos)
+        new_edges = np.append( new_edges, random_edges , axis=0 )
+
+    return new_edges
+
+def sample_random_edges(g, num_edges_to_be_sampled, existing_edges, non_optins_pos):
+
+    num_edges_remaining = num_edges_to_be_sampled
+    picked_edges = np.empty((0,2), int)
+
+    while True: 
+        new_edge_pos_1 = np.random.choice(g.n(), num_edges_remaining, replace=True)
+        new_edge_pos_2 = np.random.choice(g.n(), num_edges_remaining, replace=True)
+ 
+        # selecting optin-optin edges
+        non_optins_pos_1 = non_optins_pos[new_edge_pos_1]
+        non_optins_pos_2 = non_optins_pos[new_edge_pos_2]
+        non_optins_zero_edges_pos = non_optins_pos_1 + non_optins_pos_2
+        
+        # removing optin-optin edges
+        new_zero_edges = np.concatenate(( np.array([new_edge_pos_1[non_optins_zero_edges_pos]]), np.array([new_edge_pos_2[non_optins_zero_edges_pos]])), axis=0).T  
+        
+        new_zero_edges.sort()
+
+        # removing duplicated edges
+        new_zero_edges_unique = np.unique(new_zero_edges, axis=0)
+
+        # removing self edges
+        new_zero_edges_without_self_edges = new_zero_edges_unique[new_zero_edges_unique[:,0] != new_zero_edges_unique[:,1]]
+        
+        # removing edges already picked 
+        new_zero_edges_not_picked = set(map(tuple, new_zero_edges_without_self_edges)).difference(set(map(tuple, picked_edges)))
+       
+        # removing edges that already exists 
+        new_zero_edges_not_repeated = new_zero_edges_not_picked.difference(existing_edges)
+
+        new_zero_edges_not_repeated_arr = np.array(list(new_zero_edges_not_repeated))
+
+        if len(new_zero_edges_not_repeated_arr) > 0:
+            picked_edges = np.append( picked_edges, new_zero_edges_not_repeated_arr , axis=0 )
+
+            num_edges_remaining = num_edges_to_be_sampled - len(picked_edges)
+            if num_edges_remaining == 0:
+                break
+    
+    return picked_edges
         
 def mean_of_duplicated_edges(edges):
     df_edges = pd.DataFrame(data=edges, columns=["s", "d", "w"], dtype="int")
