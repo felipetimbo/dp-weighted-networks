@@ -401,7 +401,6 @@ def get_edges_from_degree_sequence2(g, degree_seq):
 def adjust_degree_sequence(g, degree_seq):
     ds = degree_seq.copy()
     non_optins_pos = g.vp.optin.fa == 0
-    # existing_edges = g.get_edges([])  
 
     m = int(np.sum(degree_seq)/2)
 
@@ -409,27 +408,76 @@ def adjust_degree_sequence(g, degree_seq):
     df_edges = df_edges.sort_values(by=['w'], ascending=False)
     existing_edges = df_edges.to_numpy()
 
-    # existing_edges = g.get_edges([g.ep.ew])
-    exceeding_edges = len(existing_edges) - m
+    new_edges = set(map(tuple, []))  
+    new_edges_list = np.empty((0,2), int) 
+    weights = []
+    existing_edges_to_keep = []
 
-    if exceeding_edges > 0:
+    # first step: top-down edges addition
+    for i in range(len(existing_edges)):
+        edge_i = existing_edges[i]
+        orig = edge_i[0]
+        dest = edge_i[1]
+        if ds[orig] != 0 and ds[dest] != 0:
+            new_edge = np.array([orig, dest])
+            new_edge.sort()
+            new_edges.add((new_edge[0],new_edge[1]))
+            new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
+            ds[new_edge[0]] -= 1
+            ds[new_edge[1]] -= 1
+            weights.append(edge_i[2])
+        else:    
+            existing_edges_to_keep.append(i)
+            
+    # second step: one side is ok
 
-        # random_edges = 0
-        # weights_for_random_edges = []
-        new_edges = set(map(tuple, []))  
-        new_edges_list = np.empty((0,2), int) 
-        weights = []
+    existing_edges_2 = existing_edges[existing_edges_to_keep]
+    existing_edges_to_keep = []
 
-        i = 0
-        # while (len(new_edges) + random_edges) <= m:
-        while (len(new_edges_list) <= m) and (i < len(existing_edges)) and (np.sum(ds) > 1):
-            i += 1
-            edge_i = existing_edges[i]
-            orig = edge_i[0]
-            dest = edge_i[1]
-            if ds[orig] != 0 and ds[dest] != 0:
-                new_edge = np.array([orig, dest])
+    for i in range(len(existing_edges_2)):
+        edge_i = existing_edges_2[i]
+        orig = edge_i[0]
+        dest = edge_i[1]
+        if ds[orig] != 0 or ds[dest] != 0:
+            if ds[orig] != 0:
+                v1 = orig
+            else:
+                v1 = dest
+
+            highest_dss = ds.argsort()[-(len(ds)):][::-1]
+            for j in range(len(highest_dss)):
+
+                v2 = highest_dss[j]
+
+                if non_optins_pos[v1] or non_optins_pos[v2]:
+                    new_edge = np.array([v1, v2])
+                    new_edge.sort()
+
+                    if new_edge[0] != new_edge[1]:
+                        if tuple(new_edge) not in set(map(tuple, new_edges)):
+                            new_edges.add((new_edge[0],new_edge[1]))
+                            new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
+                            ds[new_edge[0]] -= 1
+                            ds[new_edge[1]] -= 1
+                            weights.append(edge_i[2])
+                            break 
+                
+                if j == len(highest_dss)-1:
+                    existing_edges_to_keep.append(i)
+        else:
+            existing_edges_to_keep.append(i)
+
+    # third step: graph realization
+
+    existing_edges_3 = existing_edges_2[existing_edges_to_keep]
+
+    for i in range(len(existing_edges_3)):
+        highest_dss = ds.argsort()[-(len(ds)):][::-1]
+        for a, b in itertools.combinations( list(range( len(highest_dss) )) , 2):
+            if non_optins_pos[ highest_dss[a]  ] or non_optins_pos[ highest_dss[b] ]:
+                new_edge = np.array([highest_dss[a], highest_dss[b]])
                 new_edge.sort()
+
                 if new_edge[0] != new_edge[1]:
                     if tuple(new_edge) not in set(map(tuple, new_edges)):
                         new_edges.add((new_edge[0],new_edge[1]))
@@ -437,85 +485,12 @@ def adjust_degree_sequence(g, degree_seq):
                         ds[new_edge[0]] -= 1
                         ds[new_edge[1]] -= 1
                         weights.append(edge_i[2])
-                    # else: 
-                    #     print(1) # implementar
-            elif ds[orig] != 0 or ds[dest] != 0: # when at least one is not 0
-                if ds[orig] != 0:
-                    v1 = orig
-                else:
-                    v1 = dest
-
-                # v1_optout = non_optins_pos[v1]
-                highest_dss = ds.argsort()[-(len(ds)):][::-1]
-
-                for j in range(len(highest_dss)):
-
-                    v2 = highest_dss[j]
-
-                    if non_optins_pos[v1] or non_optins_pos[v2]:
-                        new_edge = np.array([v1, v2])
-                        new_edge.sort()
-
-                        if new_edge[0] != new_edge[1]:
-                            if tuple(new_edge) not in set(map(tuple, new_edges)):
-                                new_edges.add((new_edge[0],new_edge[1]))
-                                new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
-                                ds[new_edge[0]] -= 1
-                                ds[new_edge[1]] -= 1
-                                weights.append(edge_i[2])
-                                break                       
-
-                # random_edges += 1  
-                # weights_for_random_edges.append( edge_i[2] )         
-
-            else: # when both are 0
-                highest_dss = ds.argsort()[-(len(ds)):][::-1]
-                for a, b in itertools.combinations( list(range( len(highest_dss) )) , 2):
-                    if non_optins_pos[ highest_dss[a]  ] or non_optins_pos[ highest_dss[b] ]:
-                        new_edge = np.array([highest_dss[a], highest_dss[b]])
-                        new_edge.sort()
-
-                        if new_edge[0] != new_edge[1]:
-                            if tuple(new_edge) not in set(map(tuple, new_edges)):
-                                new_edges.add((new_edge[0],new_edge[1]))
-                                new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
-                                ds[new_edge[0]] -= 1
-                                ds[new_edge[1]] -= 1
-                                weights.append(edge_i[2])
-                                break
-                
-                # random_edges += 1
-                # weights_for_random_edges.append( edge_i[2] )    
-
-        new_edges_with_w = np.concatenate((new_edges_list, np.array([ weights ]).T ), axis=1)
-
-        if len(new_edges_with_w) < m:
-            num_random_edges = m - len(new_edges_with_w)
-            edges_to_be_added = sample_random_edges(g.n(), num_random_edges, set(map(tuple, new_edges_with_w[:,[0,1]])), non_optins_pos)
-            edges_to_be_added_with_w = np.concatenate((edges_to_be_added, np.array([np.ones( len(edges_to_be_added) )]).T ), axis=1)
-
-            new_edges_with_w = np.append(new_edges_with_w, edges_to_be_added_with_w, axis=0) 
-
-        # while True:
-        #     v_with_minimum_degree_pos = np.argmin(ds)  # node that has exceding edges 
-        #     degree_of_minimum = ds[v_with_minimum_degree_pos ]
-        #     if degree_of_minimum >= 0:
-        #         break  
-        
-        # edges_of_v = g.get_out_edges(v_with_minimum_degree_pos, [g.ep.ew] )
-        # neighbors = edges_of_v
-
-    else:
-
-        edges_to_be_added = sample_random_edges(g.n(), np.absolute(exceeding_edges), set(map(tuple, existing_edges[:,[0,1]])) , non_optins_pos)
-        edges_to_be_added_with_w = np.concatenate((edges_to_be_added, np.array([np.ones( len(edges_to_be_added) )]).T ), axis=1)
-
-        new_edges_with_w = np.append(existing_edges, edges_to_be_added_with_w, axis=0)  
+                        break
+    
+    new_edges_with_w = np.concatenate((new_edges_list, np.array([ weights ]).T ), axis=1)
 
     return new_edges_with_w
-
-    # num_movements_needed = np.sum( np.absolute( degree_seq ))
-            
+           
         
 def remove_edges_with_lower_weights(g, m):
 
@@ -671,7 +646,7 @@ def remove_edges_with_lower_weights_and_adjust(g, m, sum_w):
         new_edges = df_edges.to_numpy()
 
         edges_w = new_edges[:,2]
-        edges_w_adjusted = min_l2_norm(edges_w, sum_w, num_steps=10)
+        edges_w_adjusted = min_l2_norm_old(edges_w, sum_w, num_steps=10)
 
         new_edges_out_out = np.concatenate((new_edges[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
         edges_in_out = g.get_edges([g.ep.ew])[g.edges_in_out()]
@@ -702,7 +677,7 @@ def adjust_edge_weights_based_on_ns(g, nss):
         neighbors_v = g.get_out_edges(v, [g.ep.ew, g.edge_index] )
         if len(neighbors_v) > 0:
             edges_w = neighbors_v[:,2] 
-            edges_w_adjusted = min_l2_norm(edges_w, nss[v], numbuild_g_from_edges_steps=10)
+            edges_w_adjusted = min_l2_norm_old(edges_w, nss[v], num_steps=10)
             edges_adjusted = np.concatenate((neighbors_v[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
             new_edges = np.append(new_edges, edges_adjusted, axis=0)  
             nss[neighbors_v[:,1]] = nss[neighbors_v[:,1]] - edges_w_adjusted
@@ -717,7 +692,7 @@ def adjust_edge_weights_based_on_ns(g, nss):
         neighbors_v = neighbors_v_not_filtered[neighbors_v_not_filtered[:,3] == 0]
         if len(neighbors_v) > 0:
             edges_w = neighbors_v[:,2] 
-            edges_w_adjusted = min_l2_norm(edges_w, nss[v], num_steps=10)
+            edges_w_adjusted = min_l2_norm_old(edges_w, nss[v], num_steps=10)
             edges_adjusted = np.concatenate((neighbors_v[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
             new_edges = np.append(new_edges, edges_adjusted, axis=0)  
             nss[neighbors_v[:,1]] = nss[neighbors_v[:,1]] - edges_w_adjusted
