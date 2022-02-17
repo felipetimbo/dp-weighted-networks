@@ -1,4 +1,3 @@
-
 import os
 import math
 import numpy as np
@@ -41,15 +40,19 @@ class DPWeightedNets():
                     g = WGraph(url)
 
                     optins_mask = g.vp.optin.fa.astype(bool)
+                    optins = g.optins()
                     optouts = g.optouts()
                     len_optouts = len(optouts)
                     # all_ns = gt.incident_edges_op(ego_graph, "out", "sum", ego_graph.ep.ew)
 
-                    mask_in_out = g.edges_in_out()
-                    g_in_out = WGraph(G=gt.GraphView(g, efilt=mask_in_out), prune=True)
+                    # mask_in_out = g.edges_in_out()
+                    # g_in_out = WGraph(G=gt.GraphView(g, efilt=mask_in_out), prune=True)
 
-                    mask_out_out = g.edges_out_out()
-                    g_out_out = WGraph(G=gt.GraphView(g, efilt=mask_out_out), prune=True)
+                    # mask_out_out = g.edges_out_out()
+                    # g_out_out = WGraph(G=gt.GraphView(g, efilt=mask_out_out), prune=True)
+
+                    mask_without_in_in = g.edges_without_in_in()
+                    g_without_in_in = WGraph(G=gt.GraphView(g, efilt=mask_without_in_in), prune=True)
 
                     for e in self.es:
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
@@ -68,8 +71,8 @@ class DPWeightedNets():
                             utils.log_msg('....... RUN ' + str(r) + ' .......')   
                             
                             new_edges = np.empty((0,3), int)
-                            strengths_noisy = np.array([])
-                            degrees_noisy = np.array([])
+                            # strengths_noisy = np.array([])
+                            # degrees_noisy = np.array([])
 
                             ### local processing ###
                             range_v = np.array_split(list(range(g.num_vertices())), self.num_threads) 
@@ -78,13 +81,13 @@ class DPWeightedNets():
                             # with Manager() as manager:
                             manager = multiprocessing.Manager()
                             new_edges_multiprocessing = manager.list() 
-                            strengths_noisy_multiprocessing = manager.list() 
-                            degrees_noisy_multiprocessing = manager.list() 
+                            strengths_noisy_multiprocessing = manager.dict() 
+                            degrees_noisy_multiprocessing = manager.dict() 
 
                             threads = []
                             for i in range(self.num_threads):
                                 t = multiprocessing.Process( target = self.local_dp, args =(new_edges_multiprocessing, strengths_noisy_multiprocessing, 
-                                                                degrees_noisy_multiprocessing, optins_mask, range_v[i], g_in_out, optouts, g_out_out, 
+                                                                degrees_noisy_multiprocessing,optins_mask, range_v[i],g_without_in_in, optins, optouts, 
                                                                 geom_prob_mass_e3_s2, geom_prob_mass_e2, geom_prob_mass_e1, e1, len_optouts))
                                 t.start()
                                 threads.append(t)
@@ -95,57 +98,71 @@ class DPWeightedNets():
                             ### aggregator ###
 
                             new_edges = np.append(new_edges, np.concatenate( np.array(list(new_edges_multiprocessing),dtype='object')), axis=0).astype('int')
-                            strengths_noisy = np.array(list(strengths_noisy_multiprocessing), dtype='int') # np.append(strengths_noisy, np.concatenate( np.array(list(strengths_noisy_multiprocessing),dtype='object')), axis=0).astype('int')
-                            degrees_noisy = np.array(list(degrees_noisy_multiprocessing), dtype='int') # np.append(degrees_noisy, np.concatenate( np.array(list(degrees_noisy_multiprocessing),dtype='object')), axis=0).astype('int')
+                            strengths_noisy_dict = dict(strengths_noisy_multiprocessing) #, dtype='int') # np.append(strengths_noisy, np.concatenate( np.array(list(strengths_noisy_multiprocessing),dtype='object')), axis=0).astype('int')
+                            strengths_noisy = np.array([strengths_noisy_dict[key] for key in sorted(strengths_noisy_dict.keys())])
 
-                            utils.log_msg('post processing graph...')
-                            new_edges = tools.mean_of_duplicated_edges(new_edges)
-                            g_before_pp = tools.build_g_from_edges(g, new_edges)
+                            degrees_noisy_dict = dict(degrees_noisy_multiprocessing) #, dtype='int') # np.append(degrees_noisy, np.concatenate( np.array(list(degrees_noisy_multiprocessing),dtype='object')), axis=0).astype('int')
+                            degrees_noisy = np.array([degrees_noisy_dict[key] for key in sorted(degrees_noisy_dict.keys())])
 
-                            # num_edges_opt_outs = int(np.sum( np.array(degrees_noisy)[optouts])/2)
-                            sum_edges_opt_outs = int(np.sum( np.array(strengths_noisy)[optouts])/2)
+                            utils.log_msg('merging graph...')
+                            new_edges_after_mean = tools.mean_of_all_edges(new_edges)
+                            g_before_pp = tools.build_g_from_edges(g, new_edges_after_mean, add_optin_edges=False)
                             
-                            # num_edges_opt_outs = int(g.m() - np.sum(g_before_pp.edges_in_out()) - np.sum(g_before_pp.edges_in_in()))
-                            num_edges_opt_outs = g_out_out.m()
-                            new_g = tools.remove_edges_with_lower_weights_and_adjust(g_before_pp, num_edges_opt_outs , sum_edges_opt_outs)
+                            # num_edges_to_remain = int(np.sum(degrees_noisy)/2) 
+                            # new_edges_after_capping = tools.remove_edges_with_lower_weights(g_before_pp, num_edges_to_remain )
+                            # g_before_degree_adjustment = tools.build_g_from_edges(g, new_edges_after_capping, add_optin_edges=False)
+
+                            utils.log_msg('adjusting degrees ...')
+                            ds_remaining_adjusted = tools.min_l2_norm_old(degrees_noisy, np.sum(degrees_noisy), num_steps=10, min_value=1)
+                            # degrees_difference = (g_before_degree_adjustment.degrees() - ds_remaining_adjusted).astype(int)
+                            edges_before_ns_adjustment = tools.adjust_degree_sequence(g_before_pp, ds_remaining_adjusted )
                             
+                            utils.log_msg('node strength adjustment...')
+                            g_prime2 = tools.build_g_from_edges(g, edges_before_ns_adjustment, add_optin_edges=False)
+                            nss_ajusted = tools.min_l2_norm_old(strengths_noisy, np.sum(strengths_noisy), num_steps=10)
+
+                            new_edges = tools.adjust_edge_weights_based_on_ns(g_prime2, nss_ajusted)
+                            new_g = tools.build_g_from_edges(g, new_edges)
+
                             utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_local_p3.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_local_pf.graphml" % ( dataset , optin_method, optin_perc, e, r)     
                             new_g.save(path_graph)                            
 
-    def local_dp(self, new_edges, strengths_noisy, degrees_noisy, optins_mask, range_v, g_in_out, optouts, g_out_out, geom_prob_mass_e3_s2, geom_prob_mass_e2, geom_prob_mass_e1, e1, len_optouts):
+    def local_dp(self, new_edges, strengths_noisy, degrees_noisy, optins_mask, range_v, g_without_in_in, optins, optouts, geom_prob_mass_e3_s2, geom_prob_mass_e2, geom_prob_mass_e1, e1, len_optouts):
         
         for v in range_v:
             if optins_mask[v]:
-                ego_graph = g_in_out
-                optouts_minus_self_edge = optouts
+                # ego_graph = g_in_out
+                possible_edges = optouts
             else:
-                ego_graph = g_out_out
-                optouts_minus_self_edge = optouts[optouts != v]
+                # ego_graph = g_out_out
+                possible_edges = np.append( optouts[optouts != v] , optins )
             
-            d = ego_graph.vertex(v).out_degree()
-            d_noisy = dp_mechanisms.geometric([d], geom_prob_mass_e3_s2)[0]
-            degrees_noisy.append(d_noisy) 
+            d = g_without_in_in.vertex(v).out_degree()
+            d_noisy = dp_mechanisms.geometric2([d], geom_prob_mass_e3_s2)[0]
+            degrees_noisy[v] = d_noisy 
+            # degrees_noisy.append(d_noisy) 
             # degrees_noisy = np.append(degrees_noisy, d_noisy, axis=0)
             
-            neighbors_v = ego_graph.get_out_edges(v, [ego_graph.ep.ew] )
+            neighbors_v = g_without_in_in.get_out_edges(v, [g_without_in_in.ep.ew] )
             ns = np.sum(neighbors_v[:,2])
-            edges_w_sum_noisy = dp_mechanisms.geometric([ns], geom_prob_mass_e2)[0]
-            strengths_noisy.append(edges_w_sum_noisy)
+            edges_w_sum_noisy = dp_mechanisms.geometric2([ns], geom_prob_mass_e2)[0]
+            strengths_noisy[v] = edges_w_sum_noisy
+            # strengths_noisy.append(edges_w_sum_noisy)
             # strengths_noisy = np.append(strengths_noisy, edges_w_sum_noisy, axis=0)  
             
-            if d_noisy > 0 and d_noisy < ego_graph.max_degree():
+            if d_noisy > 0 and d_noisy < g_without_in_in.max_degree():
             
                 edges_w = neighbors_v[:,2] 
                 edges_w_noisy = dp_mechanisms.geometric(edges_w, geom_prob_mass_e1)
                 top_d_edges_w_noisy, num_remaining_edges, non_zero_edges_w_filtered_mask = tools.high_pass_filter(edges_w_noisy, e1, len_optouts, d_noisy)                                   
             
-                edges_w_ajusted = tools.min_l2_norm(top_d_edges_w_noisy, edges_w_sum_noisy, num_steps=10)
+                edges_w_ajusted = tools.min_l2_norm_old(top_d_edges_w_noisy, edges_w_sum_noisy, num_steps=10)
             
                 edges_w_noisy_non_zero = edges_w_ajusted[:num_remaining_edges]
                 edges_w_noisy_zeros = edges_w_ajusted[num_remaining_edges:len(edges_w_ajusted)]    
             
-                opt_outs_picked = np.random.choice(optouts_minus_self_edge, len(edges_w_noisy_zeros), replace=False)
+                opt_outs_picked = np.random.choice(possible_edges, len(edges_w_noisy_zeros), replace=False)
             
                 new_edge_zeros = np.column_stack((np.ones(len(edges_w_noisy_zeros))*v, opt_outs_picked ))
                 new_edge_zeros = np.concatenate((new_edge_zeros, np.array([edges_w_noisy_zeros]).T ), axis=1)
@@ -160,22 +177,22 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    #  'high-school-contacts',
-                    #  'copenhagen-interaction'
-                    # 'reality-call'
-                    #  'contacts-dublin'
-                    #    'digg-reply', 
-                    #    'enron' 
+                        # 'high-school-contacts',
+                        # 'copenhagen-interaction',
+                        # 'reality-call',
+                        # 'contacts-dublin',
+                        'digg-reply', 
+                        'enron' 
                     # 'wiki-talk'
                     ]
 
     optins_methods = ['affinity']
     optins_perc = [.2]
 
-    es = [ .1, 1, 2 ]
+    es = [  1, 2 ] 
 
-    runs = 2
-    num_threads = 6
+    runs = 1
+    num_threads = 7 
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, num_threads, runs)
     exp.run()
