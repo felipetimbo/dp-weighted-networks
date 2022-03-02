@@ -1,19 +1,20 @@
 import math
+from xxlimited import new
 import pandas as pd
 import numpy as np
 import graph_tool as gt
 import cvxpy as cp
 import graph_tool.spectral as sp
-import os
+import os 
 import itertools
 
 import matplotlib
 import matplotlib.pyplot as plt
 
-
 from dpwnets import (utils, graphics)
 from graph.wgraph import WGraph
 from graph_tool.util import find_edge
+from graph_tool.generation import random_graph
 
 np.random.seed(0)
 
@@ -107,7 +108,7 @@ def proj2(x, min_value=1):
 
     return projection
 
-def min_l2_norm_old(edges_w, desired_sum, num_steps=500, min_value=1):
+def min_l2_norm_bkp(edges_w, desired_sum, num_steps=500, min_value=1):
     x0 = edges_w.copy()
 
     alpha = 0.01
@@ -127,6 +128,80 @@ def min_l2_norm_old(edges_w, desired_sum, num_steps=500, min_value=1):
                 new_edges_w[edges_w_picked] += + 1
 
     return new_edges_w
+
+def min_l2_norm_old(arr_orig, desired_sum, num_steps=500, min_value=1):
+    arr = np.array(arr_orig).astype('int')
+
+    if desired_sum < len(arr)*min_value:
+        return (np.ones(len(arr))*min_value).astype('int')
+    # higher_than_min_idx = np.where(arr > min_value)[0]
+    # lower_than_min_idx = np.where(arr <= min_value)[0]
+
+    arr = np.clip(arr, min_value, np.max(arr))
+    
+    # less_than_min_arr = arr[arr < min_value]
+    # less_than_min_arr_sum = np.sum(np.abs(less_than_min_arr))
+    exceding_units = int(np.sum(arr) -desired_sum)
+
+    # higher_than_min_arr_sum = np.sum(np.abs(less_than_min_arr))
+
+    if exceding_units > 0:
+        sign = -1
+    elif exceding_units < 0:
+        sign = 1
+    else:
+        sign = 0
+
+    exceding_units = np.abs(exceding_units)
+
+    if sign == -1:
+
+        while exceding_units > len(np.where(arr > min_value)[0]):
+            exceding_units -= len(arr[np.where(arr > min_value)[0]])
+            arr[np.where(arr > min_value)[0]] += sign*1
+        if exceding_units > 0:
+            p = np.ones(len(arr)).astype('int')
+            p[np.where(arr <= min_value)[0]] = 0
+            prob = p/np.sum(p)
+            idx_to_decrease_1 = np.random.choice(len(arr), exceding_units, replace=False, p=prob)
+            arr[idx_to_decrease_1] += sign*1
+    elif sign == 1:
+        while exceding_units > len(arr):
+            exceding_units -= len(arr)
+            arr += sign*1
+        if exceding_units > 0:
+            idx_to_increase_1 = np.random.choice(len(arr), exceding_units, replace=False)
+            arr[idx_to_increase_1] += sign*1
+
+        # num_iterations = int(np.ceil(exceding_units/len(arr[higher_than_min_idx])) )
+        # if num_iterations > 1:
+        #     for _ in range(num_iterations-1):
+        #         arr[higher_than_min_idx] -= 1
+
+    
+    
+    if np.sum(arr) != desired_sum and len(np.where(arr < min_value)[0]) > 0:
+        print("error in min l2 method")
+
+    return arr
+
+    # alpha = 0.01
+    # gradient = lambda y: l2_gradient(edges_w, y)
+    # xs = gradient_descent(x0, [alpha]*num_steps, gradient, desired_sum, proj, min_value)
+    # new_edges_w = xs[-1].astype(int)
+
+    # exceding_units = int(np.abs(desired_sum - np.sum(new_edges_w)))
+    # if exceding_units != 0:
+    #     edges_w_different_1_pos = np.where(new_edges_w != min_value)[0]
+
+    #     if len(edges_w_different_1_pos) >= exceding_units:
+    #         edges_w_picked = edges_w_different_1_pos[np.random.choice(len(edges_w_different_1_pos), exceding_units, replace=False)]
+    #         if (desired_sum - np.sum(new_edges_w)) < 0:
+    #             new_edges_w[edges_w_picked] -= 1
+    #         else: 
+    #             new_edges_w[edges_w_picked] += + 1
+
+    # return new_edges_w
 
 def min_l2_norm(edges_w, _sum, num_steps=500, min_value=1):
     x0 = edges_w.copy()
@@ -400,6 +475,74 @@ def get_edges_from_degree_sequence2(g, degree_seq):
 
 def adjust_degree_sequence(g, degree_seq):
     ds = degree_seq.copy()
+
+    # m = int(np.sum(degree_seq)/2)
+
+    df_edges = pd.DataFrame(data=g.get_edges([g.ep.ew]), columns=["s", "d", "w"], dtype="int")
+    df_edges = df_edges.sort_values(by=['w'], ascending=False)
+    existing_edges = df_edges.to_numpy()
+
+    new_edges = set(map(tuple, []))  
+    new_edges_list = np.empty((0,2), int) 
+    weights = []
+    existing_edges_to_keep = []
+
+    # first step: top-down edges addition
+    for i in range(len(existing_edges)):
+        edge_i = existing_edges[i]
+        orig = edge_i[0]
+        dest = edge_i[1]
+        if ds[orig] != 0 and ds[dest] != 0:
+            new_edge = np.array([orig, dest])
+            new_edge.sort()
+            new_edges.add((new_edge[0],new_edge[1]))
+            new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
+            ds[new_edge[0]] -= 1
+            ds[new_edge[1]] -= 1
+            weights.append(edge_i[2])
+        else:    
+            existing_edges_to_keep.append(i)
+    
+    if (np.sum(ds) % 2) != 0:
+        ds_positives = np.where(ds > 0)[0]
+        id_to_decrease_1_unit = np.random.choice(ds_positives, 1)
+        ds[id_to_decrease_1_unit] -= 1
+    random_g = gt.generation.random_graph(len(ds), lambda i: ds[i], directed=False)
+    random_edges = random_g.get_edges()
+    random_edges_sorted = []
+    for e in random_edges:
+        random_edges_sorted.append(sorted(e))
+    random_edges_set = set(map(tuple, random_edges_sorted))
+    intersected_edges = random_edges_set.intersection(new_edges)
+    num_intersecetd_edges = len(intersected_edges)
+    utils.log_msg("num random edges added: %s" % num_intersecetd_edges)
+    random_edges_set_difference = random_edges_set.difference(intersected_edges)
+    random_edges_arr_difference = np.array([list(item) for item in random_edges_set_difference]) # np.append( new_edges_list, np.array([new_edge]) , axis=0 )
+    
+    all_edges_so_far = new_edges.union(random_edges_set_difference)
+
+    while num_intersecetd_edges > 0:
+        u, v = np.random.choice(g.n(), 2, replace=False)
+        new_e = np.array([u, v])
+        new_e.sort()
+   
+        # check if not exists
+        if tuple(new_e) not in set(map(tuple, all_edges_so_far)):
+            all_edges_so_far.add(tuple(new_e))
+            random_edges_arr_difference = np.append(random_edges_arr_difference, np.array([new_e]) , axis=0 )
+            num_intersecetd_edges -= 1
+
+    existing_edges_after_first_addition = existing_edges[existing_edges_to_keep]
+
+    highest_edges_with_w = np.concatenate((new_edges_list, np.array([ weights ]).T ), axis=1)
+    new_random_edges_with_w = np.concatenate((random_edges_arr_difference, np.array([ existing_edges_after_first_addition[:,2] ]).T ), axis=1)
+
+    concatened_edges = np.concatenate((highest_edges_with_w, new_random_edges_with_w), axis=0)
+    return concatened_edges
+
+
+def adjust_degree_sequence_old(g, degree_seq):
+    ds = degree_seq.copy()
     non_optins_pos = g.vp.optin.fa == 0
 
     m = int(np.sum(degree_seq)/2)
@@ -520,6 +663,31 @@ def remove_edges_with_lower_weights(g, m):
 
     return new_edges
 
+def top_m_edges_with_lower_weights(edges, m, g_basis):
+
+    exceeding_edges = len(edges) - m
+    if exceeding_edges > 0:
+
+        df_edges = pd.DataFrame(data=edges.astype('int'), columns=["s", "d", "w"])
+        df_edges = df_edges.sort_values(by=['w'], ascending=False)
+        df_edges = df_edges[:m]
+        new_edges = df_edges.to_numpy()
+
+    else:
+        non_optins_positions = g_basis.vp.optin.fa == 0
+        edges_to_be_added = sample_random_edges(g_basis.n(), np.absolute(exceeding_edges), edges[:,[0,1]], non_optins_positions)
+        edges_to_be_added_with_w = np.concatenate((edges_to_be_added, np.array([np.ones( len(edges_to_be_added) )]).T ), axis=1)
+
+        new_edges = np.append(edges, edges_to_be_added_with_w, axis=0)  
+
+    return new_edges
+
+def filter_edges_higher_than_threshold(g, threshold):
+    edges = g.get_edges([g.ep.ew])
+    edges_w = edges[:,2].astype('int')
+    edges_filtered_pos = np.where(edges_w >= threshold)[0]
+    new_edges = edges[edges_filtered_pos]
+    return new_edges
 
 def sample_random_edges(n, num_edges_to_be_sampled, existing_edges, non_optins_pos):
 
@@ -620,7 +788,7 @@ def build_g_from_edges(g, new_edges, allow_zero_edges_w=False, add_optin_edges=T
     else:
         edges_to_be_added = np.append(edges_in_in, new_edges, axis=0) 
 
-    df_edges = pd.DataFrame(data=edges_to_be_added, columns=["s", "d", "w"], dtype="int")
+    df_edges = pd.DataFrame(data=edges_to_be_added.astype('int'), columns=["s", "d", "w"])
     df_edges['or'] = df_edges[['s','d']].min(axis=1)
     df_edges['de'] = df_edges[['s','d']].max(axis=1)
     df_edges = df_edges.sort_values(by=['or', 'de'])
@@ -632,7 +800,7 @@ def build_g_from_edges(g, new_edges, allow_zero_edges_w=False, add_optin_edges=T
     # if new_g.m() != ( len( edges_to_be_added) + len(edges_in_in) ):
     #     utils.error_msg('problem in sampling graph')
 
-    return new_g
+    return new_g   
 
 def remove_edges_with_lower_weights_and_adjust(g, m, sum_w):
     edges_out_out = g.get_edges([g.ep.ew])[g.edges_out_out()]
@@ -732,3 +900,8 @@ def adjust_edge_weights_based_on_ns(g, nss):
 #     new_edges_w_arr = new_edges_w[upper_triangle_idx]
 
 #     print(1)
+
+
+if __name__ == "__main__":
+    arr = [4.5, 6.51, 3.49, -7, 5, -3, 0, 1]
+    min_l2_norm_old(arr,19)
