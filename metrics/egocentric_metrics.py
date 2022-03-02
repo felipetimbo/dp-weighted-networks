@@ -1,8 +1,11 @@
 import numpy as np
+import pandas as pd
 import graph_tool
+import multiprocessing
 
 from graph_tool.centrality import betweenness, pagerank, eigenvector
-from graph_tool.topology import pseudo_diameter, similarity, shortest_distance
+from graph_tool.topology import pseudo_diameter, similarity, shortest_distance, max_cliques, extract_largest_component, shortest_path
+from dpwnets import tools
 
 import graph_tool.all as gt
 
@@ -89,6 +92,12 @@ def calculate(G, metric):
         optins_arr = avg_degree(G)
     elif metric == 'avg_edges_w':
         optins_arr = avg_edges_w(G)
+    elif metric == 'strong_triangles':
+        optins_arr = strong_triangles(G) 
+    elif metric == 'strong_triangles2':
+        optins_arr = strong_triangles2(G)  
+    elif metric == 'strong_shortest_paths':
+        optins_arr = strong_shortest_paths(G)  
     else:
         optins_arr = None
 
@@ -487,6 +496,99 @@ def ego_bt(egonet, v):
 def ego_bt_w(egonet, v):
     b, _ = betweenness(egonet, weight=egonet.ep.ew, norm=False)
     return b[v]
+
+def strong_triangles2(G):
+    triangles = []
+    for c in gt.max_cliques(G):
+        if len(c) == 3:
+            e1 = G.edge(c[0],c[1])
+            e2 = G.edge(c[0],c[2])
+            e3 = G.edge(c[1],c[2])
+            w1 = G.ep.ew[e1]
+            w2 = G.ep.ew[e2]
+            w3 = G.ep.ew[e3]
+            triangle_strength = w1+w2+w3
+            c_sorted = sorted(c)
+            triangle = np.append(c_sorted, triangle_strength)
+            triangles.append(triangle)
+
+    df_triangles = pd.DataFrame(data=np.array(triangles), columns=["n1", "n2", "n3", "w"], dtype="int")
+    df_triangles = df_triangles.sort_values(by=['w'], ascending=False)
+    tringles_arr = df_triangles.to_numpy()
+
+    return tringles_arr
+
+def strong_triangles(G):
+    triangles = []
+    edges_w = G.ep.ew.fa.astype('int')
+    threshold = np.percentile(edges_w, 15) 
+    for c in gt.max_cliques(G):
+        if len(c) == 3: 
+            e1 = G.edge(c[0],c[1])
+            e2 = G.edge(c[0],c[2])
+            e3 = G.edge(c[1],c[2])
+            w1 = G.ep.ew[e1]
+            w2 = G.ep.ew[e2]
+            w3 = G.ep.ew[e3]
+            if w1 > threshold and w2 > threshold and w3 > threshold:
+                triangle_strength = w1+w2+w3
+                c_sorted = sorted(c)
+                triangle = np.append(c_sorted, triangle_strength)
+                triangles.append(triangle)
+
+    if len(triangles) > 0:
+        df_triangles = pd.DataFrame(data=np.array(triangles), columns=["n1", "n2", "n3", "w"], dtype="int")
+        df_triangles = df_triangles.sort_values(by=['w'], ascending=False)
+        tringles_arr = df_triangles.to_numpy()
+    else:
+        tringles_arr = []
+
+    return tringles_arr
+
+def strong_shortest_paths(G):
+    edges_w = G.ep.ew.fa.astype('int')
+    threshold = np.percentile(edges_w, 85) 
+    new_edges = tools.filter_edges_higher_than_threshold(G, threshold)
+    new_g = tools.build_g_from_edges(G, new_edges)
+    largest_component_extracted = extract_largest_component(new_g)
+    s_paths = compute_distances(largest_component_extracted)
+    return s_paths
+
+def compute_distances(g):
+
+    num_threads = 15
+    vertices = list(g.get_vertices())
+    range_v = np.array_split(vertices, num_threads) # np.array_split(list(range(g.num_vertices())), num_threads)
+    distances = np.array([], dtype='int')
+    manager = multiprocessing.Manager() 
+    distances_multiprocessing = manager.list() 
+    # all_distances_multiprocessing = manager.list() 
+    threads = []
+    for i in range(num_threads):
+        t = multiprocessing.Process( target = compute_distances_parallel, args =(g, range_v[i], distances_multiprocessing, vertices ))
+        t.start()
+        threads.append(t)
+    for t in threads:    
+        t.join() 
+    distances = list(distances_multiprocessing)
+    distances_df = pd.DataFrame(distances)
+    distances_sorted_df = distances_df.sort_values(by=[0], ascending=False).fillna(np.inf)
+    distances_arr = distances_sorted_df.to_numpy()
+
+    return distances_arr
+    # print(new_g)
+
+def compute_distances_parallel(g, range_v, distances,  all_vertices):
+    for v in range_v:
+        for u in all_vertices:
+            if v < u:
+                s_dist = shortest_distance(g, v, u, weights=g.ep.ew) 
+                if s_dist != 2147483647:
+                    # all_distances.append(s_dist)
+                    vlist, elist = shortest_path(g, v, u, weights=g.ep.ew) 
+                    s_path = [int(v) for v in vlist]
+                    weight_path = np.append(s_dist, s_path).astype('int').tolist()
+                    distances.append(weight_path)  
 
 # def effective_size(egonet, v):
 #     return degree(v) - (2*alter_edges(egonet, v))/degree(v)

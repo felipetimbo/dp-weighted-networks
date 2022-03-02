@@ -26,6 +26,13 @@ def calculate(error_metric, y_true, y_pred, k=10):
         error = op(y_true, y_pred, k)
     elif error_metric == 'kld':
         error = kld(y_true, y_pred)
+    elif error_metric == 'jaccard_triangles':
+        error = jaccard_triangles(y_true, y_pred, k) 
+    elif error_metric == 'jaccard_shortest_paths':
+        error = jaccard_shortest_paths(y_true, y_pred, k)
+    elif error_metric == 'mre_shortest_paths':
+        error = mre_shortest_paths(y_true, y_pred, k)
+        
     else:
         error = None
 
@@ -86,6 +93,79 @@ def op(y_true, y_pred, k):
     topk_pred = np.argsort(-y_pred)[:k]
     error = len(set(topk_true) & set(topk_pred)) / k
     # msgs.log_msg('overlapping percentage = %f' % error )
+    return error
+
+def jaccard_triangles(y_true, y_pred, k):
+    if len(y_true) > 0 and len(y_pred) > 0:
+        topk_true = set(map(tuple, y_true[:k][:,[0,1,2]])) 
+        topk_pred = set(map(tuple, y_pred[:k][:,[0,1,2]])) 
+        intersection_cardinality = len(topk_true.intersection(topk_pred))
+        union_cardinality = len(topk_true.union(topk_pred))
+        jaccard = intersection_cardinality / float(union_cardinality)
+        print(jaccard)
+    else:
+        jaccard = 0
+    # error = len(set(topk_true) & set(topk_pred)) / k
+    # msgs.log_msg('overlapping percentage = %f' % error )
+    return jaccard
+
+def jaccard_shortest_paths(y_true, y_pred, k):
+    topk_true = set(map(tuple, y_true[:k][:,list(range(1,len(y_true[0])))])) 
+    topk_pred = set(map(tuple, y_pred[:k][:,list(range(1,len(y_pred[0])))])) 
+    intersection_cardinality = len(topk_true.intersection(topk_pred))
+    union_cardinality = len(topk_true.union(topk_pred))
+    jaccard = intersection_cardinality / float(union_cardinality)
+    print(jaccard)
+    # error = len(set(topk_true) & set(topk_pred)) / k
+    # msgs.log_msg('overlapping percentage = %f' % error )
+    return jaccard
+
+def mre_triangles(g_pred, y_true, k):
+
+    topk_triangles_true = y_true[:k][:,[0,1,2]]
+    topk_weights_true = y_true[:k][:,3]
+
+    topk_weights_pred = []
+
+    for triangle in topk_triangles_true:
+        sum_of_w = 0
+
+        edge1 = g_pred.edge(triangle[0], triangle[1])
+        edge2 = g_pred.edge(triangle[0], triangle[2])
+        edge3 = g_pred.edge(triangle[1], triangle[2])
+
+        if edge1 is not None:
+            sum_of_w += g_pred.ep.ew[edge1]
+        if edge2 is not None:
+            sum_of_w += g_pred.ep.ew[edge2]
+        if edge3 is not None:
+            sum_of_w += g_pred.ep.ew[edge3]
+
+        topk_weights_pred.append(sum_of_w)
+
+    error = mre(topk_weights_true, np.array(topk_weights_pred))
+    return error
+
+def mre_shortest_paths(g_pred, y_true, k):
+
+    topk_paths_true = y_true[:k][:,list(range(1,len(y_true[0])))]
+    topk_weights_true = y_true[:k][:,0]
+
+    topk_weights_pred = []
+
+    for path in topk_paths_true:
+        path = path[path != np.inf]
+        sum_of_w = 0
+        for i in range(len(path)-1):
+            u = path[i]
+            v = path[i+1]
+            edge = g_pred.edge(u, v)
+            if edge is not None:
+                w = g_pred.ep.ew[edge]
+                sum_of_w += w
+        topk_weights_pred.append(sum_of_w)
+
+    error = mre(topk_weights_true, np.array(topk_weights_pred))
     return error
 
 def recall(y_true_pos, y_pred_pos):
