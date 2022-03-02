@@ -84,9 +84,9 @@ class DPWeightedNets():
 
                             ds_remaining = ds_ajusted - g_prime.degrees()
                             # ds_remaining_adjusted = tools.min_l2_norm(ds_remaining, np.sum(ds_remaining), num_steps=10, min_value=0) 
-                            ds_remaining_adjusted = tools.min_l2_norm_old(ds_remaining, (len(top_m_edges_w_noisy) - num_remaining_edges)*2, num_steps=100, min_value=0) 
+                            ds_remaining_adjusted = tools.min_l2_norm_old(ds_remaining, (len(top_m_edges_w_noisy) - num_remaining_edges)*2, num_steps=100) 
                         
-                            new_edges_before_ns_adjustment = tools.get_edges_from_degree_sequence(g_prime, ds_remaining_adjusted)  
+                            new_edges_before_ns_adjustment = tools.get_edges_from_degree_sequence3(g_prime, ds_remaining_adjusted)  
                             new_edges_and_weights = np.concatenate((new_edges_before_ns_adjustment, np.array([top_m_edges_w_noisy[num_remaining_edges:len(top_m_edges_w_noisy)]]).T ), axis=1)
                             all_edges_before_ns_adjustment = np.append(edges_in_g_prime, new_edges_and_weights, axis=0) 
 
@@ -119,19 +119,19 @@ class DPWeightedNets():
 if __name__ == "__main__":
     datasets_names = [
                      'high-school-contacts',
-                     'copenhagen-interaction',
+                    #  'copenhagen-interaction',
                     #  'reality-call',
                     #  'contacts-dublin',
-                    #  'digg-reply',
+                    #   'digg-reply',
                     #  'enron',
                     # 'wiki-talk'
                     # 'sx-stackoverflow'
                     ]
 
     optins_methods = ['affinity']
-    optins_perc = [.2]
+    optins_perc = [.0]
 
-    es = [ .5, 1, 2 ]
+    es = [ 2 ]
 
     runs = 5
 

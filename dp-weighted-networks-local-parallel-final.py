@@ -103,17 +103,19 @@ class DPWeightedNets():
 
                             degrees_noisy_dict = dict(degrees_noisy_multiprocessing) #, dtype='int') # np.append(degrees_noisy, np.concatenate( np.array(list(degrees_noisy_multiprocessing),dtype='object')), axis=0).astype('int')
                             degrees_noisy = np.array([degrees_noisy_dict[key] for key in sorted(degrees_noisy_dict.keys())])
+                            ds_remaining_adjusted = tools.min_l2_norm_old(degrees_noisy, np.sum(degrees_noisy), num_steps=10, min_value=1)
+                            new_m = int(np.sum(ds_remaining_adjusted)/2)
 
                             utils.log_msg('merging graph...')
                             new_edges_after_mean = tools.mean_of_all_edges(new_edges)
-                            g_before_pp = tools.build_g_from_edges(g, new_edges_after_mean, add_optin_edges=False)
+                            top_m_edges = tools.top_m_edges_with_lower_weights(new_edges_after_mean, new_m, g)
+                            g_before_pp = tools.build_g_from_edges(g, top_m_edges, add_optin_edges=False)
                             
                             # num_edges_to_remain = int(np.sum(degrees_noisy)/2) 
                             # new_edges_after_capping = tools.remove_edges_with_lower_weights(g_before_pp, num_edges_to_remain )
                             # g_before_degree_adjustment = tools.build_g_from_edges(g, new_edges_after_capping, add_optin_edges=False)
 
                             utils.log_msg('adjusting degrees ...')
-                            ds_remaining_adjusted = tools.min_l2_norm_old(degrees_noisy, np.sum(degrees_noisy), num_steps=10, min_value=1)
                             # degrees_difference = (g_before_degree_adjustment.degrees() - ds_remaining_adjusted).astype(int)
                             edges_before_ns_adjustment = tools.adjust_degree_sequence(g_before_pp, ds_remaining_adjusted )
                             
@@ -125,7 +127,7 @@ class DPWeightedNets():
                             new_g = tools.build_g_from_edges(g, new_edges)
 
                             utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_local_pf.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_local_final.graphml" % ( dataset , optin_method, optin_perc, e, r)     
                             new_g.save(path_graph)                            
 
     def local_dp(self, new_edges, strengths_noisy, degrees_noisy, optins_mask, range_v, g_without_in_in, optins, optouts, geom_prob_mass_e3_s2, geom_prob_mass_e2, geom_prob_mass_e1, e1, len_optouts):
@@ -181,18 +183,19 @@ if __name__ == "__main__":
                         # 'copenhagen-interaction',
                         # 'reality-call',
                         # 'contacts-dublin',
-                        'digg-reply', 
-                        'enron' 
-                    # 'wiki-talk'
+                        # 'digg-reply', 
+                        # 'enron' ,
+                        'wiki-talk',
+                        'dblp'
                     ]
 
     optins_methods = ['affinity']
-    optins_perc = [.2]
+    optins_perc = [.0]
 
-    es = [  1, 2 ] 
+    es = [ 1, 2 ] 
 
-    runs = 1
-    num_threads = 7 
+    runs = 4
+    num_threads = 15
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, num_threads, runs)
     exp.run()
