@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from graph_tool.topology import shortest_distance
+from graph_tool.topology import (shortest_distance, shortest_path)
 
 import graph_tool as gt
+import pandas as pd
 import numpy as np
+import multiprocessing
 
 class WGraph(object):
 
@@ -13,14 +15,48 @@ class WGraph(object):
             self.G = gt.Graph(G, directed=False, prune=prune)
         else:
             self.G = gt.Graph(G, directed=False)
-        if compute_distances:
-            distances = np.array([], dtype='int')
-            for v in self.G.vertices():
-                s_paths = shortest_distance(self.G, v).fa.astype('int')
-                s_paths = s_paths[s_paths != 2147483647]
-                s_paths = s_paths[s_paths != 0]
-                distances = np.append(distances, s_paths, axis=0)  
-            self.distances = distances
+
+        # if compute_distances:
+        #     num_threads = 15
+        #     thresold = 100
+        #     range_v = np.array_split(list(range(self.G.num_vertices())), num_threads)
+        #     distances = np.array([], dtype='int')
+            
+        #     manager = multiprocessing.Manager() 
+        #     distances_multiprocessing = manager.list() 
+        #     # all_distances_multiprocessing = manager.list() 
+
+        #     threads = []
+        #     for i in range(num_threads):
+        #         t = multiprocessing.Process( target = self.compute_distances_parallel, args =(self.G, range_v[i], distances_multiprocessing, list(range(self.G.num_vertices())), thresold ))
+        #         t.start()
+        #         threads.append(t)
+            
+        #     for t in threads:    
+        #         t.join() 
+                   
+        #     distances = list(distances_multiprocessing)
+        #     distances_df = pd.DataFrame(distances)
+        #     distances_sorted_df = distances_df.sort_values(by=[0], ascending=False)
+        #     distances_arr = distances_sorted_df.to_numpy()
+        #     self.shortests_paths = distances_arr
+
+            # all_distances = np.array(list(all_distances_multiprocessing))
+            # self.distances = all_distances
+            # self.distances = distances_arr[:,0]
+
+    # def compute_distances_parallel(self, g, range_v, distances,  all_vertices, thresold):
+    #     for v in range_v:
+    #         for u in all_vertices:
+    #             if v != u:
+    #                 s_dist = shortest_distance(g, v, u, weights=g.ep.ew) 
+    #                 if s_dist != 2147483647:
+    #                     # all_distances.append(s_dist)
+    #                     if s_dist > thresold:
+    #                         vlist, elist = shortest_path(g, v, u, weights=g.ep.ew) 
+    #                         s_path = [int(v) for v in vlist]
+    #                         weight_path = np.append(s_dist, s_path).astype('int').tolist()
+    #                         distances.append(weight_path)  
 
     def n(self):
         return self.G.num_vertices()
@@ -29,7 +65,7 @@ class WGraph(object):
         return self.G.num_edges()
 
     def degrees(self):
-        return self.G.get_out_degrees(self.G.get_vertices())
+        return self.G.get_out_degrees(self.G.get_vertices()).astype('int')
 
     def max_degree(self, cached=False):
         return np.amax(self.degrees()) 
