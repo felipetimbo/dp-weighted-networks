@@ -4,10 +4,13 @@ import graph_tool
 import multiprocessing
 
 from graph_tool.centrality import betweenness, pagerank, eigenvector
-from graph_tool.topology import pseudo_diameter, similarity, shortest_distance, max_cliques, extract_largest_component, shortest_path
+from graph_tool.topology import pseudo_diameter, similarity, shortest_distance, label_components, random_shortest_path, max_cliques, extract_largest_component, shortest_path, all_shortest_paths, count_shortest_paths, all_paths
+
 from dpwnets import tools
 
 import graph_tool.all as gt
+
+from graph.wgraph import WGraph
 
 def calculate(G, metric):
     if metric == 'degree':
@@ -589,6 +592,89 @@ def compute_distances_parallel(g, range_v, distances,  all_vertices):
                     s_path = [int(v) for v in vlist]
                     weight_path = np.append(s_dist, s_path).astype('int').tolist()
                     distances.append(weight_path)  
+
+def strong_shortest_paths_random(graphs, max_k, num_sample_nodes, threshold):
+
+    graph_list = []
+
+    for graph in graphs:
+        edges_w = graph.ep.ew.fa.astype('int')
+        mask = edges_w >= threshold
+        new_g = WGraph(G=gt.GraphView(graph, efilt=mask))
+        graph_list.append(new_g)
+
+    reamining_pair_of_nodes = num_sample_nodes
+
+    all_paths_g = {}
+    all_paths_final = {}
+    for j in range(len(graph_list)):
+        all_paths_g[j] = []
+        all_paths_final[j] = []
+
+    node_pairs = set(map(tuple, []))  
+    n = graph_list[0].n()
+
+    while reamining_pair_of_nodes > 0:
+        u, v = np.random.choice(n, 2, replace=False )
+        tuple_uv = tuple(sorted([u, v]))
+        if tuple_uv not in node_pairs:
+
+            all_g_belong_to_same_component = True
+            for g in graph_list:
+                comp, _ = label_components(g)
+                if comp.fa.astype('int')[u] != comp.fa.astype('int')[v]:
+                    all_g_belong_to_same_component = False
+                    break
+
+            if all_g_belong_to_same_component:
+
+                for j in range(len(graph_list)):
+                    
+                    s_path, _ = shortest_path(graph_list[j], u, v ) #, weights=graph_list[j].ep.ew) # testar se não for do mesmo componente
+                    cutoff = len(s_path)
+                    
+                    num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff ))
+                    
+                    if num_shortest_paths < max_k:
+                        while num_shortest_paths < max_k:
+                            cutoff += 1 
+                            num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff )) 
+
+                    # if num_shortest_paths > 10*max_k:
+                    #     while num_shortest_paths > 10*max_k:
+                    #         cutoff -= 1 
+                    #         num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff ))
+
+                    paths = []
+                    for path in all_paths(graph_list[j], u, v, cutoff=cutoff):
+                        sum_of_w = 0 
+                        for i in range(len(path)-1):
+                            x = path[i]
+                            y = path[i+1]
+                            edge = graph_list[j].edge(x, y)
+                            if edge is not None:
+                                w = graph_list[j].ep.ew[edge]
+                                sum_of_w += w 
+                        paths.append(np.append(sum_of_w, path).astype('int').tolist()) 
+        
+                    all_paths_g[j].append(paths)
+
+                node_pairs.add(tuple_uv)
+                reamining_pair_of_nodes -= 1
+                # num_shortest_paths = count_shortest_paths(g, u, v, weights=g.ep.ew)
+
+    for j in range(len(all_paths_g)):
+        all_paths_g_i = all_paths_g[j]
+        for i in range(num_sample_nodes):
+            distances_df = pd.DataFrame(all_paths_g_i[i])
+            distances_sorted_df = distances_df.sort_values(by=[0]).fillna(np.inf)
+            distances_sorted_filtered_df = distances_sorted_df[:max_k].reset_index(drop=True)
+            distances_arr = distances_sorted_filtered_df.to_numpy()
+            all_paths_final[j].append(distances_arr)
+
+
+    return all_paths_final
+
 
 # def effective_size(egonet, v):
 #     return degree(v) - (2*alter_edges(egonet, v))/degree(v)
