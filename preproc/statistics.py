@@ -27,24 +27,8 @@ class Statistics():
                     utils.log_msg('max degree:  %s' % g.max_degree())
                     utils.log_msg('degrees avg: %s' % g.avg_degrees())
                     utils.log_msg('degrees dec: %s' % g.degrees_percentiles())
+                    utils.log_msg('degrees qua: %s' % g.degrees_quartiles())
                     utils.log_msg('max edge_w:  %s' % g.max_edge_w())
                     utils.log_msg('edges_w avg: %s' % g.avg_edges_w())
-                    utils.log_msg('edges_w dec: %s' % g.edges_w_percentiles())
-
-if __name__ == "__main__":
-    datasets_names = [
-                    'enron' ]
-                    # 'copenhagen-interaction',
-                    # 'reality-call', 
-                    # 'contacts-dublin',
-                    # 'digg-reply',
-                    # 'reality-call',
-                    # 'wiki-talk',
-                    # 'sx-stackoverflow']
-
-    optins_methods = ['affinity']
-    optins_perc = [.2]
-
-    statistics = Statistics(datasets_names, optins_methods, optins_perc)
-    statistics.show()
-    
+                    utils.log_msg('edges_w dec: %s' % g.edges_w_percentiles())    
+                    utils.log_msg('edges_w qua: %s' % g.edges_w_quartiles())    

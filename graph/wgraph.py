@@ -77,6 +77,10 @@ class WGraph(object):
         deciles = np.arange(10, 101,10)
         return np.percentile(self.degrees(), deciles).astype(int)   
 
+    def degrees_quartiles(self):
+        quartiles = np.array([0, 25, 50, 75, 100])
+        return np.percentile(self.degrees(), quartiles).astype(int)   
+
     def edges_w(self):
         return self.ep.ew.fa.astype(int)
     
@@ -96,6 +100,10 @@ class WGraph(object):
     def edges_w_percentiles(self):
         deciles = np.arange(10, 101,10)
         return np.percentile(self.edges_w(), deciles).astype(int)   
+
+    def edges_w_quartiles(self):
+        quartiles = np.array([0, 25, 50, 75, 100])
+        return np.percentile(self.edges_w(), quartiles).astype(int)   
 
     def optins(self):
         optins_mask = self.vp.optin.fa.astype(bool)
