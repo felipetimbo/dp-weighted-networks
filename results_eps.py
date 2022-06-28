@@ -69,13 +69,13 @@ class ResultsDPWeightedNets():
                                 errors_list_3[ego_metric][error_metr] = []
                                    
                         for r in range(self.runs):    
-                            path_g1 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_local.graphml' % ( optin_method, optin_perc, e, r )))
+                            path_g1 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_baseline_final.graphml' % ( optin_method, optin_perc, e, r )))
                             g1 = WGraph(path_g1)
 
-                            path_g2 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ds.graphml' % ( optin_method, optin_perc, e, r )))
+                            path_g2 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_ps_baseline.graphml' % ( optin_method, optin_perc, e, r )))
                             g2 = WGraph(path_g2)
 
-                            path_g3 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ds_ns_ins.graphml' % ( optin_method, optin_perc, e, r )))
+                            path_g3 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ps2.graphml' % ( optin_method, optin_perc, e, r )))
                             g3 = WGraph(path_g3)
 
                             for ego_metr in self.ego_metrics:
@@ -122,9 +122,12 @@ class ResultsDPWeightedNets():
                                 ego_metric_mean_3 = np.mean( errors_list_3[ego_metr][error_metr] )
                                 errors_3[ego_metr][error_metr].append(ego_metric_mean_3)  
 
-                    legends = ['local', 
-                                'global + DS',
-                                'new global ' ] 
+                    legends = [
+                                'high-pass-filter ', 
+                                'threshold sampling',
+                                'global approach',
+                                # 'local approach'
+                                ] 
                     
                     for ego_metr in self.ego_metrics:
                         for error_metr in self.error_met: 
@@ -140,28 +143,28 @@ class ResultsDPWeightedNets():
                             y.append(errors_3[ego_metr][error_metr])
                             path_result = "./data/%s/results/result_%s_%s_%s_%s.png" % ( dataset, optin_method, optin_perc, ego_metr, error_metr) 
                             graphics.line_plot2(np.array(self.es), np.array(y), xlabel='$\epsilon$', ylabel= error_metr, ylog=False, line_legends=legends, path=path_result)                                
-                            path_result2 = "./data/%s/results/logscale_result_%s_%s_%s_%s.png" % ( dataset, optin_method, optin_perc, ego_metr, error_metr) 
-                            graphics.line_plot2(np.array(self.es), np.array(y), xlabel='$\epsilon$', ylabel= error_metr, ylog=True, line_legends=legends, path=path_result2)                                
+                            # path_result2 = "./data/%s/results/logscale_result_%s_%s_%s_%s.png" % ( dataset, optin_method, optin_perc, ego_metr, error_metr) 
+                            # graphics.line_plot2(np.array(self.es), np.array(y), xlabel='$\epsilon$', ylabel= error_metr, ylog=True, line_legends=legends, path=path_result2)                                
 
 
 if __name__ == "__main__":
     datasets_names = [
                     #    'copenhagen-interaction',
-                    #    'high-school-contacts',
+                        'high-school-contacts',
                     #    'reality-call',
                     #    'contacts-dublin'
-                        'digg-reply', 
-                        'enron' 
-                      ] 
+                        # 'digg-reply', 
+                        # 'enron' 
                     # 'wiki-talk',
                     # 'sx-stackoverflow']
+                    ] 
 
     optins_methods = ['affinity']
-    optins_perc = [.2]
+    optins_perc = [.0]
 
-    es = [ .1, 1, 2 ]
+    es = [ .5, 1, 2 ]
 
-    error_met = ['mre']
+    error_met = ['kld']
 
     ego_metrics = [ 
                     ## global ##
@@ -170,16 +173,17 @@ if __name__ == "__main__":
                     # 'avg_shortest_path' ]
 
                     ## ego ##
-                      'degree',
+                    #  'degree',
                     #   'num_edges_in_alters',
-                      'node_strength',
-                      'node_edges_weight_avg',  
-                      'sum_of_2_hop_edges',
+                    #  'node_strength',
+                    #  'node_edges_weight_avg',  
+                    #  'sum_of_2_hop_edges',
                       'degree_all',
                     #   'num_edges_in_alters_all',
-                      'node_strength_all', 
-                      'node_edges_weight_avg_all', 
-                      'sum_of_2_hop_edges_all']
+                    #   'node_strength_all', 
+                    #   'node_edges_weight_avg_all', 
+                    #   'sum_of_2_hop_edges_all'
+                      ]
 
                     # ## centrality ##
                     #  'pagerank_w',
