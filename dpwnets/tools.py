@@ -63,6 +63,124 @@ def high_pass_filter(arr, eps, max_len, threshold):
 
     return top_m_edges_w_noisy, num_remaining_edges, non_zero_edges_w_filtered_mask
 
+def threshold_sampling(arr, eps, max_len, m):
+
+    Ts = 2
+
+    variance = 100000
+    a = np.exp(-eps)
+
+    len_binomial = max_len - m
+
+    while True:
+        p = (a/((1+a)*Ts))*((1-(Ts+1)*(a**Ts) + Ts*(a**(Ts+1)))/(1-a)) + (a**(Ts+1))/(1+a)
+        k = np.random.binomial( len_binomial, p)
+        if k > m:
+            Ts += 1
+        # num_edges = np.sum( P > Ts ) + k
+        # if num_edges > 1.1*m:
+        #     Ts += 1
+        else:
+            # Ts -= 1
+            break
+
+    Ts_before = Ts
+    p_before = p
+    k_before = k
+    edges_added_in_G_prime_pos_before = []
+
+    while True:
+        p = (a/((1+a)*Ts))*((1-(Ts+1)*(a**Ts) + Ts*(a**(Ts+1)))/(1-a)) + (a**(Ts+1))/(1+a)
+        k = np.random.binomial( len_binomial, p)
+
+        edges_added_in_G_prime_pos = []
+        for edge in arr:
+            prob_added = max(min(edge/Ts, 1), 0)
+            is_added = np.random.choice([True, False], 1, p=[prob_added, 1-prob_added])[0]
+            edges_added_in_G_prime_pos.append(is_added)
+
+        total_new_edges = k + np.sum(edges_added_in_G_prime_pos)
+        if total_new_edges > m:
+            Ts_before = Ts
+            p_before = p
+            k_before = k
+            edges_added_in_G_prime_pos_before = edges_added_in_G_prime_pos.copy()
+            Ts += 1
+        else:
+            # Ts -= 1
+            break
+
+    Ts = Ts_before
+    p = p_before
+    k = k_before
+    edges_added_in_G_prime_pos = np.array(edges_added_in_G_prime_pos_before)
+
+    weights = np.array(range(variance))
+    prob_mass = []
+    for w in weights:
+        if w <= Ts:
+            mass = ((w/Ts)*((1-a)*(a**(abs(w))))/(1+a))/p
+        else:
+            mass = (((1-a)*(a**(abs(w))))/(1+a))/p
+        prob_mass.append(mass)
+
+    zeros_edges_w_filtered = np.random.choice(list(range(variance)), k, p=prob_mass, replace=True ) 
+    if np.sum(edges_added_in_G_prime_pos) > 0:   
+        non_zero_edges_w_filtered = arr[edges_added_in_G_prime_pos]
+    else:
+        non_zero_edges_w_filtered = np.array([])
+
+    top_edges_after_filter = np.append(non_zero_edges_w_filtered, zeros_edges_w_filtered)
+
+    num_remaining_edges = np.sum( edges_added_in_G_prime_pos )
+
+    num_exceding_edges = int(num_remaining_edges + k - m)
+    m_pos = top_edges_after_filter.argsort()[:num_exceding_edges]
+    non_zero_edges_w_to_be_removed = m_pos[m_pos < num_remaining_edges]
+    non_zero_edges_w_filtered_pos = np.where(edges_added_in_G_prime_pos)[0]
+
+    if len(non_zero_edges_w_to_be_removed)>0:
+        edges_added_in_G_prime_pos[non_zero_edges_w_filtered_pos[non_zero_edges_w_to_be_removed]] = False
+        # utils.log_msg('%s non zero edges removed' % len(non_zero_edges_w_to_be_removed))
+        num_remaining_edges -= len(non_zero_edges_w_to_be_removed)
+    
+    zero_edges_w_to_be_removed = m_pos[m_pos >= num_remaining_edges]    
+    # utils.log_msg('%s zero edges removed' % len(zero_edges_w_to_be_removed))          
+    
+    top_edges_after_filter_mask = np.full(len(top_edges_after_filter), True)
+    top_edges_after_filter_mask[non_zero_edges_w_to_be_removed] = False
+    top_edges_after_filter_mask[zero_edges_w_to_be_removed] = False
+    top_m_edges_w_noisy = top_edges_after_filter[top_edges_after_filter_mask]
+    
+    # utils.log_msg('m = %s/%s, orig. remaining edges = %s/%s (%s) ' % ( len(top_m_edges_w_noisy), len(arr), num_remaining_edges, len(arr), float("{:.2f}".format(num_remaining_edges/len(arr))) ) )
+
+    return top_m_edges_w_noisy, num_remaining_edges, edges_added_in_G_prime_pos
+
+    # edges_after_filter = np.append(arr, zeros_edges_w_filtered)
+
+    # rand_values = np.random.uniform(0,1,len(zeros_edges_w_filtered))
+    # P = np.append(P, zeros_edges_w_filtered/rand_values)
+    
+    # CONTINUAR AQUI
+
+    # m_highest_priorities_mask = P.argsort()[::-1][:m]
+
+    # non_zero_edges_w_to_keep_pos = np.sort(m_highest_priorities_mask[m_highest_priorities_mask < len(arr)])
+    # zero_edges_w_to_keep_pos = np.sort(m_highest_priorities_mask[m_highest_priorities_mask >= len(arr)])
+
+    # top_edges_after_filter = np.append(edges_after_filter[non_zero_edges_w_to_keep_pos], edges_after_filter[zero_edges_w_to_keep_pos])
+    # if min(top_edges_after_filter) <= 0:
+    #     utils.error_msg('negative values in priority sampling')
+
+    # non_zero_edges_w_filtered_mask = np.full(len(arr), False)
+    # non_zero_edges_w_filtered_mask[non_zero_edges_w_to_keep_pos] = True
+
+    # num_remaining_edges = np.sum(non_zero_edges_w_filtered_mask)
+
+    # return top_edges_after_filter, num_remaining_edges, non_zero_edges_w_filtered_mask
+
+
+
 def priority_sampling(arr, eps, max_len, m):
 
     Ts = 2
@@ -285,16 +403,16 @@ def min_l2_norm(edges_w, _sum, num_steps=500, min_value=1):
 
     return new_edges_w
 
-def error_plot(ys, yscale='log'):
-    plt.figure(figsize=(8, 8))
-    plt.xlabel('Step')
-    plt.ylabel('Error')
-    plt.yscale(yscale)
-    plt.plot(range(len(ys)), ys, **kwargs)
-    path = "./a.png"
-    dir_path = os.path.dirname(os.path.realpath(path))
-    os.makedirs(dir_path, exist_ok=True)
-    plt.savefig(path, dpi=900)
+# def error_plot(ys, yscale='log'):
+#     plt.figure(figsize=(8, 8))
+#     plt.xlabel('Step')
+#     plt.ylabel('Error')
+#     plt.yscale(yscale)
+#     plt.plot(range(len(ys)), ys, **kwargs)
+#     path = "./a.png"
+#     dir_path = os.path.dirname(os.path.realpath(path))
+#     os.makedirs(dir_path, exist_ok=True)
+#     plt.savefig(path, dpi=900)
 
 def min_l2_norm2(edges, nss, weight=1, num_steps=500, min_value=1):
     
@@ -320,7 +438,7 @@ def min_l2_norm2(edges, nss, weight=1, num_steps=500, min_value=1):
     objective = lambda x: least_squares(A, b, x, num_lines)
     gradient = lambda x: least_squares_gradient(A, b, x, num_lines)
     xs = gradient_descent2(x0, [alpha]*num_steps, gradient, proj2)
-    error_plot([objective(x) for x in xs])
+    # error_plot([objective(x) for x in xs])
     new_edges_w = xs[-1].astype(int)
 
     return new_edges_w
@@ -527,7 +645,7 @@ def get_edges_from_degree_sequence2(g, degree_seq):
 
     return new_edges
 
-def adjust_degree_sequence(g, degree_seq):
+def adjust_degree_sequence(g, degree_seq, non_optins_pos):
     ds = degree_seq.copy()
 
     # m = int(np.sum(degree_seq)/2)
@@ -563,9 +681,18 @@ def adjust_degree_sequence(g, degree_seq):
         ds[id_to_decrease_1_unit] -= 1
     random_g = gt.generation.random_graph(len(ds), lambda i: ds[i], directed=False)
     random_edges = random_g.get_edges()
-    random_edges_sorted = []
-    for e in random_edges:
-        random_edges_sorted.append(sorted(e))
+    
+    # random_edges_sorted = []
+    # for e in random_edges:
+    #     random_edges_sorted.append(sorted(e))
+
+    df_edges = pd.DataFrame(data=random_edges.astype('int'), columns=["s", "d"])
+    df_edges['or'] = df_edges[['s','d']].min(axis=1)
+    df_edges['de'] = df_edges[['s','d']].max(axis=1)
+    df_edges = df_edges.sort_values(by=['or', 'de'])
+    df_edges = df_edges[['or','de']]
+    random_edges_sorted = df_edges.to_numpy()
+
     random_edges_set = set(map(tuple, random_edges_sorted))
     intersected_edges = random_edges_set.intersection(new_edges)
     num_intersecetd_edges = len(intersected_edges)
@@ -575,17 +702,23 @@ def adjust_degree_sequence(g, degree_seq):
     
     all_edges_so_far = new_edges.union(random_edges_set_difference)
 
-    while num_intersecetd_edges > 0:
-        u, v = np.random.choice(g.n(), 2, replace=False)
-        new_e = np.array([u, v])
-        new_e.sort()
-   
-        # check if not exists
-        if tuple(new_e) not in set(map(tuple, all_edges_so_far)):
-            all_edges_so_far.add(tuple(new_e))
-            random_edges_arr_difference = np.append(random_edges_arr_difference, np.array([new_e]) , axis=0 )
-            num_intersecetd_edges -= 1
+    if num_intersecetd_edges > 0:
+        new_random_edges = sample_random_edges(g.n(), num_intersecetd_edges, all_edges_so_far, non_optins_pos)
+    else:
+        new_random_edges = np.empty((0,2), int)
 
+    # while num_intersecetd_edges > 0:
+    #     u, v = np.random.choice(g.n(), 2, replace=False)
+    #     new_e = np.array([u, v])
+    #     new_e.sort()
+   
+    #     # check if not exists
+    #     if tuple(new_e) not in set(map(tuple, all_edges_so_far)):
+    #         all_edges_so_far.add(tuple(new_e))
+    #         random_edges_arr_difference = np.append(random_edges_arr_difference, np.array([new_e]) , axis=0 )
+    #         num_intersecetd_edges -= 1
+
+    random_edges_arr_difference = np.append(random_edges_arr_difference, new_random_edges , axis=0 )
     existing_edges_after_first_addition = existing_edges[existing_edges_to_keep]
 
     highest_edges_with_w = np.concatenate((new_edges_list, np.array([ weights ]).T ), axis=1)
