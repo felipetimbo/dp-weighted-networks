@@ -31,9 +31,9 @@ def line_plot(x, y, xlog=False, ylog=False, xlabel=None, ylabel=None, figsize=(1
 
 def line_plot2(x, ys, path=None, line_legends=None, legend_path=None, 
               xlabel=None, ylabel=None, title=None, xlog=False, ylog=False,
-              linestyles = [':', '--', '-.', 'dashed', ':', (0, (3, 1, 1, 1, 1, 1)), ':', '--', '-.', 'dashed'],
+              linestyles = [':', '--', '-.', (0, (3, 1, 1, 1, 1, 1)), ':', 'dashed', ':', '--', '-.', 'dashed'],
               colors = ['#000000', '#360CE8', '#4ECE00', '#FF0000', '#FF69B4', '#FFFF00', '#00009F', '#F3F0F0', '#AF10E0', '#F01F0F'],
-              markers = ['o','x','+','d','1','v','>','o','d','1'],
+              markers = ['o','x','+','>','1','v','d','o','d','1'],
               figsize=(9, 5),
               ylim=None):
 
@@ -78,7 +78,7 @@ def line_plot2(x, ys, path=None, line_legends=None, legend_path=None,
     if path:
         dir_path = os.path.dirname(os.path.realpath(path))
         os.makedirs(dir_path, exist_ok=True)
-        plt.savefig(path, dpi=900)
+        plt.savefig(path, dpi=300)
         print('Graphic saved at: ' + path)
     else:
         plt.show()
@@ -152,6 +152,45 @@ def histogram(x, y, title="", xlabel="", ylabel="Frequency", path=None, line_leg
 def histogram3(x, y, z, title="", xlabel="", ylabel="Frequency", path=None, line_legends=None,
                 log=True, range_x=None, fig_size=(10,5), min_x_value=None, max_x_value=None, num_bins=100):
     # plt.figaspect([10, 4])
+    fig, ax = plt.subplots(1, 1, figsize=fig_size, tight_layout=True)
+    n1, x1,_1  = ax.hist(x, histtype=u'step', color="#ffffff", bins=num_bins, range=range_x, alpha = 0.0)
+    n2, x2,_2  = ax.hist(y, histtype=u'step', color="#ffffff", bins=num_bins, range=range_x, alpha = 0.0)
+    # n3, x3,_3  = ax.hist(z, histtype=u'step', color="#00ffff", bins=num_bins, range=range_x, alpha = 0.0)
+    
+    bin_centers1 = 0.5*(x1[1:]+x1[:-1])
+    bin_centers2 = 0.5*(x2[1:]+x2[:-1])
+    # bin_centers3 = 0.5*(x3[1:]+x3[:-1])
+     
+    ax.plot(bin_centers1,n1, color='m', label="original") 
+    ax.plot(bin_centers2,n2, color='y', label="ts") 
+    # ax.plot(bin_centers3,n3, color='y', label="ts") 
+
+    # handles, labels = ax.get_legend_handles_labels()
+    # plt.legend(labels="x1")
+    ax.legend()
+
+    plt.xlim(left=0.)
+    if min_x_value is not None:
+        plt.xlim(left=min_x_value)
+    if max_x_value is not None:
+        plt.xlim(right=max_x_value)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    if title:
+        plt.title(title)    
+    plt.grid(True)
+    if log == True:
+        plt.yscale('log')    
+    if path:
+        plt.savefig(path, dpi=900)
+    else:
+        plt.show()
+    plt.clf()
+    plt.close() 
+
+def histogram3_old(x, y, z, title="", xlabel="", ylabel="Frequency", path=None, line_legends=None,
+                log=True, range_x=None, fig_size=(10,5), min_x_value=None, max_x_value=None, num_bins=100):
+    # plt.figaspect([10, 4])
     fig, ax = plt.subplots(figsize=fig_size, tight_layout=True)
     n1,x1,_1  = plt.hist(x, histtype=u'step', color="#ffffff", bins=num_bins, range=range_x, alpha = 0.5, label="original")
     n2,x2,_2  = plt.hist(y, histtype=u'step', color="#ffffff", bins=num_bins, range=range_x, alpha = 0.5, label="g_prime")
@@ -161,12 +200,13 @@ def histogram3(x, y, z, title="", xlabel="", ylabel="Frequency", path=None, line
     bin_centers2 = 0.5*(x2[1:]+x2[:-1])
     bin_centers3 = 0.5*(x3[1:]+x3[:-1])
      
-    plt.plot(bin_centers1,n1) 
+    plt.plot(bin_centers1,n1, color='blue') 
     plt.plot(bin_centers2,n2, color='yellow') 
-    plt.plot(bin_centers2,n3, color='red') 
+    plt.plot(bin_centers3,n3, color='red') 
 
-    handles, labels = ax.get_legend_handles_labels()
-    plt.legend(labels=labels)
+    # handles, labels = ax.get_legend_handles_labels()
+    # plt.legend(labels="x1")
+    ax.legend()
 
     plt.xlim(left=0.)
     if min_x_value is not None:
