@@ -246,7 +246,7 @@ def gradient_descent(init, steps, grad, laplaced_sum, proj=lambda x: x, min_valu
         xs = [xs_next]
     return xs
 
-def gradient_descent2(init, steps, grad, proj):
+def gradient_descent2(init, steps, grad, proj=lambda x: x):
     xs = [init]
     for step in steps:
         xs.append( proj( xs[-1] - step * grad(xs[-1])) )
@@ -403,19 +403,21 @@ def min_l2_norm(edges_w, _sum, num_steps=500, min_value=1):
 
     return new_edges_w
 
-# def error_plot(ys, yscale='log'):
-#     plt.figure(figsize=(8, 8))
-#     plt.xlabel('Step')
-#     plt.ylabel('Error')
-#     plt.yscale(yscale)
-#     plt.plot(range(len(ys)), ys, **kwargs)
-#     path = "./a.png"
-#     dir_path = os.path.dirname(os.path.realpath(path))
-#     os.makedirs(dir_path, exist_ok=True)
-#     plt.savefig(path, dpi=900)
+def error_plot(ys, yscale='log'):
+    plt.figure(figsize=(8, 8))
+    plt.xlabel('Step')
+    plt.ylabel('Error')
+    plt.yscale(yscale)
+    plt.plot(range(len(ys)), ys)
+    path = "./a.png"
+    dir_path = os.path.dirname(os.path.realpath(path))
+    os.makedirs(dir_path, exist_ok=True)
+    plt.savefig(path, dpi=900)
 
-def min_l2_norm2(edges, nss, weight=1, num_steps=500, min_value=1):
+def min_l2_norm2(g, nss, weight=1, num_steps=500):
     
+    edges = g.get_edges([g.ep.ew])
+
     b = np.array(nss)
     n = len(nss)
     m = len(edges)
@@ -433,15 +435,17 @@ def min_l2_norm2(edges, nss, weight=1, num_steps=500, min_value=1):
 
     x0 = edges[:,2]
 
-    alpha = 10.0
+    alpha = 2.0
     
     objective = lambda x: least_squares(A, b, x, num_lines)
     gradient = lambda x: least_squares_gradient(A, b, x, num_lines)
-    xs = gradient_descent2(x0, [alpha]*num_steps, gradient, proj2)
-    # error_plot([objective(x) for x in xs])
+    xs = gradient_descent2(x0, [alpha]*num_steps, gradient ) #, proj2)
+    error_plot([objective(x) for x in xs])
     new_edges_w = xs[-1].astype(int)
 
-    return new_edges_w
+    new_edges = np.concatenate((edges[:,(0,1)], np.array([new_edges_w]).T), axis=1)
+
+    return new_edges
 
 def min_l2_norm_ns(edges, nss, weight=1):
 
@@ -646,6 +650,116 @@ def get_edges_from_degree_sequence2(g, degree_seq):
     return new_edges
 
 def adjust_degree_sequence(g, degree_seq, non_optins_pos):
+    ds = degree_seq.copy()
+
+    # m = int(np.sum(degree_seq)/2)
+
+    df_edges = pd.DataFrame(data=g.get_edges([g.ep.ew]), columns=["s", "d", "w"], dtype="int")
+    df_edges = df_edges.sort_values(by=['w'], ascending=False)
+    existing_edges = df_edges.to_numpy()
+
+    new_edges_set = set(map(tuple, []))  
+    new_edges_list = np.empty((0,2), int) 
+    weights = []
+    skipped_edges = []
+
+    # first step: top-down edges addition
+
+    for i in range(len(existing_edges)):
+        edge_i = existing_edges[i]
+        orig = edge_i[0]
+        dest = edge_i[1]
+        if ds[orig] != 0 and ds[dest] != 0:
+            new_edge = np.array([orig, dest])
+            new_edge.sort()
+            new_edges_set.add((new_edge[0],new_edge[1]))
+            new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
+            ds[new_edge[0]] -= 1 
+            ds[new_edge[1]] -= 1 
+            weights.append(edge_i[2]) 
+        else:    
+            skipped_edges.append(i)
+    
+    highest_edges_with_w = np.concatenate((new_edges_list, np.array([ weights ]).T ), axis=1)
+
+    edges_created_based_on_deg_seq = sample_random_edges_based_on_deg_seq(g.n(), len(skipped_edges), new_edges_set, non_optins_pos, ds )
+    all_edges_so_far = new_edges_set.union( set(map(tuple, edges_created_based_on_deg_seq)) )
+
+    num_remaining_edges = len(skipped_edges) - len(edges_created_based_on_deg_seq) 
+
+    utils.log_msg("num random edges added: %s" % num_remaining_edges)
+
+    if num_remaining_edges > 0:
+        edges_created_randomly = sample_random_edges(g.n(), num_remaining_edges, all_edges_so_far, non_optins_pos)
+    else:
+        edges_created_randomly = np.empty((0,2), int)
+
+    edges_created_after_first_addition = np.append( edges_created_based_on_deg_seq, edges_created_randomly, axis=0 ) 
+    existing_edges_after_first_addition = existing_edges[skipped_edges]
+    new_random_edges_with_w = np.concatenate((edges_created_after_first_addition, np.array([ existing_edges_after_first_addition[:,2] ]).T ), axis=1)
+
+    edges_with_degree_adjusted = np.concatenate((highest_edges_with_w, new_random_edges_with_w), axis=0)
+    return edges_with_degree_adjusted
+
+def sample_random_edges_based_on_deg_seq(n, num_edges_to_be_sampled, existing_edges, non_optins_pos, deg_seq):
+
+    num_edges_remaining = num_edges_to_be_sampled
+    picked_edges = np.empty((0,2), int)
+    num_attempts_until_break = 0
+
+    while True: 
+        positive_deg_seq_pos = np.where(deg_seq != 0)[0] 
+        remaining_deg_seq = np.zeros(n, dtype=int)
+        remaining_deg_seq[positive_deg_seq_pos] = 1
+        probs = remaining_deg_seq/np.sum(remaining_deg_seq)
+        new_edge_pos_1 = np.random.choice(n, num_edges_remaining, replace=True, p=probs)
+        new_edge_pos_2 = np.random.choice(n, num_edges_remaining, replace=True, p=probs)
+ 
+        # selecting optin-optin edges
+        non_optins_pos_1 = non_optins_pos[new_edge_pos_1]
+        non_optins_pos_2 = non_optins_pos[new_edge_pos_2]
+        non_optins_zero_edges_pos = non_optins_pos_1 + non_optins_pos_2
+        
+        # removing optin-optin edges
+        new_zero_edges = np.concatenate(( np.array([new_edge_pos_1[non_optins_zero_edges_pos]]), np.array([new_edge_pos_2[non_optins_zero_edges_pos]])), axis=0).T  
+        
+        new_zero_edges.sort()
+
+        # removing duplicated edges
+        new_zero_edges_unique = np.unique(new_zero_edges, axis=0)
+
+        # removing self edges
+        new_zero_edges_without_self_edges = new_zero_edges_unique[new_zero_edges_unique[:,0] != new_zero_edges_unique[:,1]]
+        
+        # removing edges already picked 
+        new_zero_edges_not_picked = set(map(tuple, new_zero_edges_without_self_edges)).difference(set(map(tuple, picked_edges)))
+       
+        # removing edges that already exists 
+        new_zero_edges_not_repeated = new_zero_edges_not_picked.difference(existing_edges)
+
+        new_zero_edges_not_repeated_arr = np.array(list(new_zero_edges_not_repeated))
+
+        for e in new_zero_edges_not_repeated_arr:
+            if deg_seq[e[0]] != 0 and deg_seq[e[1]] != 0:
+                picked_edges = np.append( picked_edges, [e] , axis=0 )
+                deg_seq[e[0]] -= 1
+                deg_seq[e[1]] -= 1
+
+        # if len(new_zero_edges_not_repeated_arr) > 0:
+        #     picked_edges = np.append( picked_edges, new_zero_edges_not_repeated_arr , axis=0 )
+
+        last_num_edges_remaining = num_edges_remaining
+        num_edges_remaining = num_edges_to_be_sampled - len(picked_edges)
+        if last_num_edges_remaining == num_edges_remaining:
+            num_attempts_until_break += 1
+            if num_attempts_until_break == 5: 
+                break
+        if num_edges_remaining == 0:
+            break
+    
+    return picked_edges
+
+def adjust_degree_sequence_old2(g, degree_seq, non_optins_pos):
     ds = degree_seq.copy()
 
     # m = int(np.sum(degree_seq)/2)
@@ -917,7 +1031,7 @@ def sample_random_edges(n, num_edges_to_be_sampled, existing_edges, non_optins_p
                 break
     
     return picked_edges
-        
+
 def mean_of_duplicated_edges(edges):
     df_edges = pd.DataFrame(data=edges, columns=["s", "d", "w"], dtype="int")
 
@@ -1013,8 +1127,9 @@ def remove_edges_with_lower_weights_and_adjust(g, m, sum_w):
     else:
         return g
 
+def adjust_edge_weights_based_on_ns(g, node_strengths):
 
-def adjust_edge_weights_based_on_ns(g, nss):
+    nss = node_strengths.copy()
 
     mask_out_out = g.edges_out_out()
     g_out_out = WGraph(G=gt.GraphView(g, efilt=mask_out_out), prune=True)
