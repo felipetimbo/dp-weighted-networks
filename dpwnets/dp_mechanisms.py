@@ -26,6 +26,7 @@ def geometric2(arr, prob_mass, seed=0):
     return np.array(noisy_arr)
 
 def geometric_mechanism(arr, eps, sensitivity=1):
-    prob_mass = geom_prob_mass(eps, sensitivity)
-    noisy_arr = arr + np.random.choice(a=len(prob_mass), size=len(arr), p=prob_mass, replace=True) - variance
+    p = 1 - np.exp(-eps/sensitivity)
+    z = np.random.geometric(p, len(arr)) - np.random.geometric(p, len(arr))
+    noisy_arr = arr + z
     return np.array(noisy_arr)
