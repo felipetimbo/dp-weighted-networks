@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from graph_tool.topology import (shortest_distance, shortest_path)
 
-import graph_tool as gt
+import graph_tool as gt 
+import graph_tool.all as gt_
 import pandas as pd
 import numpy as np
 import multiprocessing
@@ -97,6 +98,27 @@ class WGraph(object):
     def node_strengths(self):
         return gt.incident_edges_op(self.G, "out", "sum", self.G.ep.ew).fa.astype(int)
 
+    def sum_2_hop_edges(self):
+        sum_2_hop = []
+        nss = self.node_strengths()
+        for node in range(self.G.num_vertices()):
+            neighbors_node = self.G.get_out_neighbors(node)
+            all_nodes = np.append(neighbors_node, node)
+            sum_2_hop.append( np.sum( nss[all_nodes] ) )
+
+        return np.array(sum_2_hop)
+
+        # ns = G.new_vertex_property('int')
+        # self.G.vertex_properties['ns'] = ns
+        # gt_.incident_edges_op(G, "out", "sum", G.ep.ew, G.vp.ns)
+
+        # sum_2_hop = []
+        # for v_id in range(self.G.vertices()):
+        #     ego_net = get_ego_network(elf.G, v_id)
+        #     ns = np.array(ego_net.vp.ns.fa) 
+        #     infl_v = np.sum(ns) # - G.node_strength(v_id)
+        #     sum_2_hop.append(infl_v)
+
     def edges_w_percentiles(self):
         deciles = np.arange(10, 101,10)
         return np.percentile(self.edges_w(), deciles).astype(int)   
@@ -166,6 +188,17 @@ class WGraph(object):
 
     def density(self):
         return 2*self.m()/self.n()*(self.n() - 1)
+
+    def get_ego_network(self, v):
+        edges_v = self.G.get_out_edges(v)
+        neighbors_v = edges_v[:,1]
+        mask = np.full((G.num_vertices(),), False)
+        mask[neighbors_v] = True
+        mask_p = G.new_vertex_property("bool")
+        mask_p.fa = mask
+        mask_p[v] = True
+        egonet = gt_.GraphView(G, vfilt=mask_p)
+        return egonet
 
     def __getattr__(self, *args, **kwargs):
         return getattr(self.G, *args, **kwargs)
