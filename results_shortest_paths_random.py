@@ -17,6 +17,7 @@ class ResultsDPWeightedNets():
                     error_met, 
                     ego_metrics,
                     num_sample_nodes,
+                    threshold,
                     runs
                 ):
         self.datasets_names = datasets_names  
@@ -27,6 +28,7 @@ class ResultsDPWeightedNets():
         self.error_met = error_met
         self.ego_metrics = ego_metrics
         self.num_sample_nodes = num_sample_nodes
+        self.threshold = threshold
         self.runs = runs 
 
     def run(self):
@@ -105,7 +107,7 @@ class ResultsDPWeightedNets():
                                                 ])
                             max_k = max(self.ks)
 
-                            all_paths = egocentric_metrics.strong_shortest_paths_random(graph_list, max_k, self.num_sample_nodes)
+                            all_paths = egocentric_metrics.strong_shortest_paths_random(graph_list, max_k, self.num_sample_nodes, self.threshold)
                             ego_metrics_true[ego_metr] = all_paths[0]
                             ego_metric_pred_1 = all_paths[1] 
                             ego_metric_pred_2 = all_paths[2]
@@ -167,7 +169,7 @@ class ResultsDPWeightedNets():
                             y.append(errors_2[ego_metr][error_metr])
                             y.append(errors_3[ego_metr][error_metr])
                             # y.append(errors_3[ego_metr][error_metr])
-                            path_result = "./data/%s/results/result_%s_%s_%s_%s_%s.png" % ( dataset, optin_method, optin_perc, ego_metr, error_metr, e) 
+                            path_result = "./data/%s/results/result_%s_%s_%s_%s_e%s_t%s.png" % ( dataset, optin_method, optin_perc, ego_metr, error_metr, e, self.threshold) 
                             graphics.line_plot2(np.array(self.ks), np.array(y), xlabel='k', ylabel= error_metr, ylog=False, line_legends=legends, path=path_result)                                
                             # path_result2 = "./data/%s/results/logscale_result_%s_%s_%s_%s.png" % ( dataset, optin_method, optin_perc, ego_metr, error_metr) 
                             # graphics.line_plot2(np.array(self.ks), np.array(y), xlabel='$\epsilon$', ylabel= error_metr, ylog=True, line_legends=legends, path=path_result2)                                
@@ -203,7 +205,9 @@ if __name__ == "__main__":
                     ]
 
     runs = 4
-    num_sample_nodes = 10
+    num_sample_nodes = 10  # number of random nodes selected 
+
+    threshold = 5
     
-    exp = ResultsDPWeightedNets(datasets_names, optins_methods, optins_perc, e, ks, error_met, ego_metrics, num_sample_nodes, runs)
+    exp = ResultsDPWeightedNets(datasets_names, optins_methods, optins_perc, e, ks, error_met, ego_metrics, num_sample_nodes, threshold, runs)
     exp.run()
