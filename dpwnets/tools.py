@@ -1265,6 +1265,66 @@ def adjust_edge_weights_based_on_ns(g, node_strengths):
 
     return new_edges
 
+def adjust_edge_weights_based_on_ns3(g, node_strengths):
+
+    nss = g.node_strengths().copy()
+    nss_desired = node_strengths.copy()
+
+    mask_out_out = g.edges_out_out()
+    g_out_out = WGraph(G=gt.GraphView(g, efilt=mask_out_out), prune=True)
+
+    av = g.new_edge_property('bool') # already visited
+    g.edge_properties['av'] = av
+
+    optins = g.optins()
+    optouts = g.optouts()
+
+    new_edges = np.empty((0,3), int) 
+
+    # for v in optins:
+    #     neighbors_v = g.get_out_edges(v, [g.ep.ew, g.edge_index] )
+    #     if len(neighbors_v) > 0:
+    #         edges_w = neighbors_v[:,2] 
+    #         edges_w_adjusted = min_l2_norm_old(edges_w, nss[v], num_steps=10)
+    #         edges_adjusted = np.concatenate((neighbors_v[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
+    #         new_edges = np.append(new_edges, edges_adjusted, axis=0)  
+    #         nss[neighbors_v[:,1]] = nss[neighbors_v[:,1]] - edges_w_adjusted
+    #         g.ep.av.fa[neighbors_v[:,3]] = 1
+
+    # degrees_out_out = g_out_out.degrees()[optouts]
+    # optouts_sorted = np.argsort(degrees_out_out)
+
+    nodes_not_visited = np.ones( g.n() , dtype=bool)
+    highest_difference_idx = 1
+    nss_difference = np.abs( nss - nss_desired ) 
+
+    while np.sum(nodes_not_visited) != 0: 
+
+        v = np.argsort(nss_difference)[-highest_difference_idx]
+
+        if nodes_not_visited[v]:
+
+    # for o in optouts_sorted:
+    #     v = optouts[o]
+            neighbors_v_not_filtered = g.get_out_edges(v, [g.ep.ew, g.ep.av, g.edge_index] )
+            neighbors_v = neighbors_v_not_filtered[neighbors_v_not_filtered[:,3] == 0]
+            if len(neighbors_v) > 0:
+                edges_w = neighbors_v[:,2] 
+                edges_w_adjusted = min_l2_norm_old(edges_w, nss_desired[v], num_steps=10)
+                edges_adjusted = np.concatenate((neighbors_v[:,[0,1]], np.array([edges_w_adjusted]).T ), axis=1)
+                new_edges = np.append(new_edges, edges_adjusted, axis=0)  
+                difference_of_w = edges_w - edges_w_adjusted
+                nss[neighbors_v[:,1]] = nss[neighbors_v[:,1]] - difference_of_w
+                nss[v] = nss[v] - np.sum(difference_of_w)
+                g.ep.av.fa[neighbors_v[:,4]] = 1
+                highest_difference_idx = 1
+                nss_difference = np.abs( (nss - nss_desired)/nss_desired ) 
+            nodes_not_visited[v] = False
+        else: 
+            highest_difference_idx += 1
+
+    return new_edges
+
 # def adjust_edge_weights_based_on_ns(g, ns):
     
 #     n = g.n()
