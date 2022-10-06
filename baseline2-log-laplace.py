@@ -78,7 +78,7 @@ class DPWeightedNets():
 
                             # utils.log_msg('high pass filter...') 
 
-                            edges_w_noisy = dp_mechanisms.log_laplace_mechanism(edges[:,2], e, sensitivity) 
+                            edges_w_noisy = dp_mechanisms.log_laplace_mechanism(edges[:,2], e) 
                             edges_w_noisy_clipped = np.clip(edges_w_noisy, 1, None) 
                             new_edges = np.concatenate((edges[:,[0,1]], np.array([edges_w_noisy_clipped]).T ), axis=1)
 
@@ -97,15 +97,10 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                       'high-school-contacts',
-                    #  'copenhagen-interaction',
+                        'high-school-contacts',
                         'reality-call2',
-                    # 'contacts-dublin',
-                    # 'digg-reply',
-                       'enron',
-                    # 'wiki-talk'
-                    # 'sx-stackoverflow'
-                         'dblp'
+                        'enron',
+                        # 'dblp'
                     ]
 
     optins_methods = ['affinity']
