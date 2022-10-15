@@ -61,13 +61,13 @@ class DPWeightedNets():
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
                         # privacy budgets #
-                        e1 = 0.45*e # budget for perturb edge weights
-                        # e2 = 0.3*e # budget for query node strength
-                        e3 = 0.45*e # budget for query degree 
+                        e3 = 0.6*e # budget for query degree sequence 
+                        e2 = 0.1*e # budget for query all node strengths 
+                        e1 = 0.3*e # budget for perturb edge weights 
 
                         geom_prob_mass_e1 = dp_mechanisms.geom_prob_mass(e1)
-                        # geom_prob_mass_e2 = dp_mechanisms.geom_prob_mass(e2)
-                        # geom_prob_mass_e3_s1 = dp_mechanisms.geom_prob_mass(e3)
+                        geom_prob_mass_e2 = dp_mechanisms.geom_prob_mass(e2)
+                        geom_prob_mass_e3_s1 = dp_mechanisms.geom_prob_mass(e3)
                         geom_prob_mass_e3_s2 = dp_mechanisms.geom_prob_mass(e3, sensitivity=2) # quering opt-out edges has sens = 2
 
                         for r in range(self.runs):
@@ -119,27 +119,10 @@ class DPWeightedNets():
                             
                             g_priority_sampled = tools.build_g_from_edges(g, all_edges, add_optin_edges=False)
 
-                            # g_before_pp = tools.build_g_from_edges(g, top_m_edges, add_optin_edges=False)
-                            
-                            # num_edges_to_remain = int(np.sum(degrees_noisy)/2) 
-                            # new_edges_after_capping = tools.remove_edges_with_lower_weights(g_before_pp, num_edges_to_remain )
-                            # g_before_degree_adjustment = tools.build_g_from_edges(g, new_edges_after_capping, add_optin_edges=False)
-
                             utils.log_msg('adjusting degrees ...')
 
                             edges_with_deg_seq_adjusted = tools.adjust_degree_sequence(g_priority_sampled, ds_remaining_adjusted, non_optins_pos)
                             new_g = tools.build_g_from_edges(g, edges_with_deg_seq_adjusted, add_optin_edges=False)
-
-                            # degrees_difference = (g_before_degree_adjustment.degrees() - ds_remaining_adjusted).astype(int)
-                            # edges_before_ns_adjustment = tools.adjust_degree_sequence(g_before_pp, ds_remaining_adjusted, non_optins_pos )
-                            
-                            # utils.log_msg('node strength adjustment...')
-                            # g_prime2 = tools.build_g_from_edges(g, edges_with_deg_seq_adjusted, add_optin_edges=False)
-
-                            # nss_ajusted = tools.min_l2_norm_old(strengths_noisy, np.sum(strengths_noisy), num_steps=10)
-
-                            # new_edges = tools.adjust_edge_weights_based_on_ns(g_prime2, nss_ajusted)
-                            # new_g = tools.build_g_from_edges(g, new_edges)
 
                             utils.log_msg('saving graph...')
                             path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_local.graphml" % ( dataset , optin_method, optin_perc, e, r)     
@@ -162,12 +145,6 @@ class DPWeightedNets():
             # degrees_noisy = np.append(degrees_noisy, d_noisy, axis=0)
             
             neighbors_v = g_without_in_in.get_out_edges(v, [g_without_in_in.ep.ew] )
-            
-            # ns = np.sum(neighbors_v[:,2])
-            # edges_w_sum_noisy = dp_mechanisms.geometric2([ns], geom_prob_mass_e2)[0]
-            # strengths_noisy[v] = edges_w_sum_noisy
-            # strengths_noisy.append(edges_w_sum_noisy)
-            # strengths_noisy = np.append(strengths_noisy, edges_w_sum_noisy, axis=0)  
             
             if d_noisy > 0 and d_noisy < g_without_in_in.max_degree():
             
@@ -196,9 +173,9 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                        #   'high-school-contacts',
-                        #    'reality-call2',
-                            # 'enron' ,
+                           'high-school-contacts',
+                            'reality-call2',
+                            'enron' ,
                            'dblp'
                     ]
 

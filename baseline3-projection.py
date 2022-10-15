@@ -82,10 +82,10 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                        # 'high-school-contacts',
-                        #  'reality-call2',
-                        #  'enron',
-                         'dblp'
+                          'high-school-contacts',
+                          'reality-call2',
+                          'enron',
+                          'dblp'
                     ]
 
     optins_methods = ['affinity']

@@ -58,38 +58,14 @@ class DPWeightedNets():
                     for e in self.es:
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
-                        # privacy budgets #
-                        # e1 = 0.45*e # budget for perturb edge weights 
-                        # e2 = 0.1*e # budget for query all node strengths 
-                        # e3 = 0.45*e # budget for query degree sequence 
-
-                        # geom_prob_mass_e = dp_mechanisms.geom_prob_mass(e, sensitivity=max(edges[:,2]))
-                        # geom_prob_mass_e2_1 = dp_mechanisms.geom_prob_mass(e2) 
-                        # geom_prob_mass_e2_2 = dp_mechanisms.geom_prob_mass(e2, sensitivity=2)
-                        # geom_prob_mass_e3 = dp_mechanisms.geom_prob_mass(e3, sensitivity=2)
-
                         for r in range(self.runs):
                             utils.log_msg('....... RUN ' + str(r) + ' .......')   
                             
-                            # ds = g_without_in_in.degrees() # degree sequence
-                            # ds_noisy = dp_mechanisms.geometric(ds, geom_prob_mass_e3)
-                            # ds_ajusted = tools.min_l2_norm_old(ds_noisy, np.sum(ds_noisy), num_steps=10)
-                            # new_m = int(np.sum(ds_ajusted)/2)
-
-                            # utils.log_msg('high pass filter...') 
-
                             edges_w_noisy = dp_mechanisms.geometric_mechanism(edges[:,2], e, sensitivity) 
                             edges_w_noisy_clipped = np.clip(edges_w_noisy, 1, None) 
                             new_edges = np.concatenate((edges[:,[0,1]], np.array([edges_w_noisy_clipped]).T ), axis=1)
 
                             new_g = tools.build_g_from_edges(g, new_edges)
-
-                            # utils.log_msg('adjusting node strengths locally ...')
-
-                            # final_edges = tools.adjust_edge_weights_based_on_ns(g_edges_globally_adj, nss_ajusted)
-                            # final_edges = tools.min_l2_norm3(g_degrees_adjusted, nss_ajusted)
-
-                            # new_g = tools.build_g_from_edges(g, final_edges)
 
                             utils.log_msg('saving graph...')
                             path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_baseline1.graphml" % ( dataset , optin_method, optin_perc, e, r)     
@@ -97,15 +73,10 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    #    'high-school-contacts',
-                    #  'copenhagen-interaction',
-                        'reality-call2',
-                    # 'contacts-dublin',
-                    # 'digg-reply',
-                    #    'enron',
-                    # 'wiki-talk'
-                    # 'sx-stackoverflow'
-                        # 'dblp'
+                          'high-school-contacts',
+                          'reality-call2',
+                          'enron',
+                          'dblp'
                     ]
 
     optins_methods = ['affinity']
