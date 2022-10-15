@@ -61,9 +61,9 @@ class DPWeightedNets():
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
                         # privacy budgets #
-                        e1 = 0.5*e # budget for perturb edge weights
+                        e1 = 0.45*e # budget for perturb edge weights
                         # e2 = 0.3*e # budget for query node strength
-                        e3 = 0.5*e # budget for query degree 
+                        e3 = 0.45*e # budget for query degree 
 
                         geom_prob_mass_e1 = dp_mechanisms.geom_prob_mass(e1)
                         # geom_prob_mass_e2 = dp_mechanisms.geom_prob_mass(e2)
@@ -134,14 +134,15 @@ class DPWeightedNets():
                             # edges_before_ns_adjustment = tools.adjust_degree_sequence(g_before_pp, ds_remaining_adjusted, non_optins_pos )
                             
                             # utils.log_msg('node strength adjustment...')
-                            # g_prime2 = tools.build_g_from_edges(g, edges_before_ns_adjustment, add_optin_edges=False)
+                            # g_prime2 = tools.build_g_from_edges(g, edges_with_deg_seq_adjusted, add_optin_edges=False)
+
                             # nss_ajusted = tools.min_l2_norm_old(strengths_noisy, np.sum(strengths_noisy), num_steps=10)
 
                             # new_edges = tools.adjust_edge_weights_based_on_ns(g_prime2, nss_ajusted)
                             # new_g = tools.build_g_from_edges(g, new_edges)
 
                             utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_local_final_ps.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_local.graphml" % ( dataset , optin_method, optin_perc, e, r)     
                             new_g.save(path_graph)                            
 
     def local_dp(self, new_edges, degrees_noisy, optins_mask, range_v, g_without_in_in, optins, optouts, geom_prob_mass_e3_s2, geom_prob_mass_e1, e1, len_optouts):
@@ -195,23 +196,19 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                        #  'high-school-contacts',
-                        # 'copenhagen-interaction',
-                        #   'reality-call2',
-                        # # 'contacts-dublin',
-                        # # 'digg-reply', 
-                        #   'enron' ,
-                        # # 'wiki-talk',
+                        #   'high-school-contacts',
+                        #    'reality-call2',
+                            # 'enron' ,
                            'dblp'
                     ]
 
     optins_methods = ['affinity']
     optins_perc = [.0]
 
-    es = [ .5, 2 ] 
+    es = [ .1 , .5, 1 ] 
 
-    runs = 1
-    num_threads = 15
+    runs = 10
+    num_threads = 8
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, num_threads, runs)
     exp.run()

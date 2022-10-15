@@ -26,12 +26,18 @@ def calculate(error_metric, y_true, y_pred, k=10):
         error = op(y_true, y_pred, k)
     elif error_metric == 'kld':
         error = kld(y_true, y_pred)
+    elif error_metric == 'kld_shortest_path':
+        error = kld_shortest_path(y_true, y_pred)
+    elif error_metric == 'op_triangles':
+        error = op_triangles(y_true, y_pred, k) 
     elif error_metric == 'jaccard_triangles':
         error = jaccard_triangles(y_true, y_pred, k) 
+    elif error_metric == 'jaccard':
+        error = jaccard_distance_non_zeros(y_true, y_pred, k) 
     elif error_metric == 'jaccard_shortest_paths':
         error = jaccard_shortest_paths(y_true, y_pred, k)
     elif error_metric == 'mre_shortest_paths':
-        error = mre_shortest_paths(y_true, y_pred, k)
+        error = mre_shortest_paths(y_true, y_pred, k)  
         
     else:
         error = None
@@ -95,6 +101,13 @@ def op(y_true, y_pred, k):
     # msgs.log_msg('overlapping percentage = %f' % error )
     return error
 
+def op_triangles(y_true, y_pred, k):
+    topk_true = set(map(tuple, y_true[:k][:,[0,1,2]])) 
+    topk_pred = set(map(tuple, y_pred[:k][:,[0,1,2]]))
+    error = len(topk_true & topk_pred) / k
+    # msgs.log_msg('overlapping percentage = %f' % error )
+    return error
+
 def jaccard_triangles(y_true, y_pred, k):
     if len(y_true) > 0 and len(y_pred) > 0:
         topk_true = set(map(tuple, y_true[:k][:,[0,1,2]])) 
@@ -102,7 +115,7 @@ def jaccard_triangles(y_true, y_pred, k):
         intersection_cardinality = len(topk_true.intersection(topk_pred))
         union_cardinality = len(topk_true.union(topk_pred))
         jaccard = intersection_cardinality / float(union_cardinality)
-        print(jaccard)
+        # print(jaccard)
     else:
         jaccard = 0
     # error = len(set(topk_true) & set(topk_pred)) / k
@@ -119,6 +132,20 @@ def jaccard_shortest_paths(y_true, y_pred, k):
     # error = len(set(topk_true) & set(topk_pred)) / k
     # msgs.log_msg('overlapping percentage = %f' % error )
     return jaccard
+
+def jaccard_shortest_paths_random(y_true, y_pred, k, num_sample_nodes):
+    jaccard_arr = []
+    for i in range(num_sample_nodes):
+        topk_true = set(map(tuple, y_true[i][:k][:,list(range(1,len(y_true[i][0])))])) 
+        topk_pred = set(map(tuple, y_pred[i][:k][:,list(range(1,len(y_pred[i][0])))])) 
+        intersection_cardinality = len(topk_true.intersection(topk_pred))
+        union_cardinality = len(topk_true.union(topk_pred))
+        jaccard = intersection_cardinality / float(union_cardinality)
+        jaccard_arr.append(jaccard)
+    # print(jaccard)
+    # error = len(set(topk_true) & set(topk_pred)) / k
+    # msgs.log_msg('overlapping percentage = %f' % error )
+    return np.mean(jaccard_arr)
 
 def mre_triangles(g_pred, y_true, k):
 
@@ -145,6 +172,19 @@ def mre_triangles(g_pred, y_true, k):
 
     error = mre(topk_weights_true, np.array(topk_weights_pred))
     return error
+
+def mre_shortest_paths_random(y_true, y_pred, k, num_sample_nodes):
+    errors_arr = []
+    for i in range(num_sample_nodes):
+        topk_true = y_true[i][:k][:,0]
+        topk_pred = y_pred[i][:k][:,0]
+        error = mre(topk_true, topk_pred)
+        errors_arr.append(error)
+    # print(jaccard)
+    # error = len(set(topk_true) & set(topk_pred)) / k
+    # msgs.log_msg('overlapping percentage = %f' % error )
+    return np.mean(errors_arr)
+
 
 def mre_shortest_paths(g_pred, y_true, k):
 
@@ -184,11 +224,12 @@ def jaccard_distance(y_true, y_pred, num_zeros):
     distance = intersection_cardinality / float(union_cardinality)
     return distance
 
-def jaccard_distance_non_zeros(y_true, y_pred):
-    x = np.nonzero(y_true!=0)[0]  # y_true[y_true==0]  # np.nonzero(y_true==0)[0]
-    y = np.nonzero(y_pred!=0)[0] # y_pred[y_pred==0] # 
-    intersection_cardinality = len(set(x).intersection(set(y)))
-    union_cardinality = len(set(x).union(set(y)))
+def jaccard_distance_non_zeros(y_true, y_pred, k):
+    topk_true = set(np.argsort(-y_true)[:k])
+    topk_pred = set(np.argsort(-y_pred)[:k])
+
+    intersection_cardinality = len(topk_true.intersection(topk_pred))
+    union_cardinality = len(topk_true.union(topk_pred))
     distance = intersection_cardinality / float(union_cardinality)
     return distance
 
@@ -237,8 +278,31 @@ def calculate_error_edges_w( error_metric, edges_true, edges_pred ):
 
     return error
 
+def kld_shortest_path(hist1, hist2):
+    y_true = hist1[0].astype(float)
+    y_pred = hist2[0].astype(float)
+    if len(y_true) > len(y_pred):
+        missing_positions = len(y_true) - len(y_pred)
+        arr_of_zeros = np.zeros(missing_positions)
+        y_pred = np.append(y_pred, arr_of_zeros)
+    elif len(y_true) < len(y_pred):
+        missing_positions = len(y_pred) - len(y_true)
+        arr_of_zeros = np.zeros(missing_positions)
+        y_true = np.append(y_true, arr_of_zeros)
+    
+    y_true[y_true == 0] = 1
+    y_pred[y_pred == 0] = 1
+
+    P = y_true/np.sum(y_true)
+    Q = y_pred/np.sum(y_pred)
+
+    kld_value = np.sum(np.where((P != 0) & (Q != 0), P * np.log(P / Q), 0))
+    
+    return kld_value
+
+
 def kld(y_true, y_pred):
-    num_parts = 10
+    num_parts = 50
     y_true = np.sort(y_true)
     y_pred = np.sort(y_pred)
     y_true_s = np.array_split(y_true, num_parts)
@@ -254,8 +318,9 @@ def kld(y_true, y_pred):
     # p, bins = np.histogram(y_true, bins=20)
     P = p/np.sum(p)
     # q, _ = np.histogram(y_pred, bins=bins)
-    Q = p/np.sum(q)
-    kld_value = np.abs(np.sum(np.where( (P != 0) & (Q != 0), P * np.log(P / Q), 0)))
+    Q = q/np.sum(q)
+    kld_value = np.sum(np.where((P != 0) & (Q != 0), P * np.log(P / Q), 0))
+    # kld_value = np.abs(np.sum(np.where( (P != 0) & (Q != 0), P * np.log(P / Q), 0)))
     return kld_value
 
     # https://pandas.pydata.org/pandas-docs/stable/user_guide/merging.html

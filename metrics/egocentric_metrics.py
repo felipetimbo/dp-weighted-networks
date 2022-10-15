@@ -5,6 +5,7 @@ import multiprocessing
 
 from graph_tool.centrality import betweenness, pagerank, eigenvector
 from graph_tool.topology import pseudo_diameter, similarity, shortest_distance, label_components, random_shortest_path, max_cliques, extract_largest_component, shortest_path, all_shortest_paths, count_shortest_paths, all_paths
+from graph_tool.stats import distance_histogram
 
 from dpwnets import tools
 
@@ -51,6 +52,8 @@ def calculate(G, metric):
         optins_arr = density_w(G)
     elif metric == 'density_w_all': 
         optins_arr = density_w(G, only_optins=False)
+    elif metric == 'graph_density': 
+        optins_arr = graph_density(G)
     elif metric == 'pagerank': 
         optins_arr = page_rank(G)
     elif metric == 'pagerank_all': 
@@ -83,6 +86,8 @@ def calculate(G, metric):
         optins_arr = edges_w(G)
     elif metric == 'diameter':
         optins_arr = diameter(G)
+    elif metric == 'diameter_w':
+        optins_arr = diameter_w(G)
     elif metric == 'diam':
         optins_arr = diam(G)
     elif metric == 'avg_shortest_path':
@@ -95,28 +100,53 @@ def calculate(G, metric):
         optins_arr = avg_degree(G)
     elif metric == 'avg_edges_w':
         optins_arr = avg_edges_w(G)
+    elif metric == 'num_triangles':
+        optins_arr = num_triangles(G)
     elif metric == 'strong_triangles':
         optins_arr = strong_triangles(G) 
     elif metric == 'strong_triangles2':
         optins_arr = strong_triangles2(G)  
     elif metric == 'strong_shortest_paths':
-        optins_arr = strong_shortest_paths(G)  
+        optins_arr = strong_shortest_paths(G)     
+    elif metric == 'shortest_paths_hist':
+        optins_arr = shortest_paths_hist(G) 
     else:
         optins_arr = None
 
     return optins_arr       
 
 def diameter(G):
-    return G.diameter()
+    distances_hist = distance_histogram(G, samples=1000)
+    return len(distances_hist[0]) - 1
+
+def diameter_w(G):
+    distances_hist = distance_histogram(G, samples=1000, weight=G.ep.ew )
+    return len(distances_hist[0]) - 1
 
 def diam(G):
     return pseudo_diameter(G)[0]
 
+def graph_density(G):
+    return 2*G.m()/( G.n()*(G.n() - 1)  )
+
 def avg_shortest_path(G):
-    return G.avg_shortest_path()
+    distances_hist = distance_histogram(G, samples=1000)
+    distances_hist[1] = distances_hist[1][:-1]
+    num_sp_by_length = distances_hist[0] * distances_hist[1]
+    avg_sp = np.sum(num_sp_by_length)/np.sum(distances_hist[0])
+
+    return avg_sp
 
 def avg_shortest_path_w(G):
-    return G.avg_shortest_path_w()
+    distances_hist = distance_histogram(G, samples=1000, weight=G.ep.ew)
+    distances_hist[1] = distances_hist[1][:-1]
+    num_sp_by_length = distances_hist[0] * distances_hist[1]
+    avg_sp = np.sum(num_sp_by_length)/np.sum(distances_hist[0])
+
+    return avg_sp
+
+def shortest_paths_hist(G):
+    return distance_histogram(G, weight=G.ep.ew, float_count=False)
 
 def density_G(G):
     return G.density()
@@ -128,13 +158,15 @@ def avg_edges_w(G):
     return G.avg_edges_w()
 
 def similar(G1, G2):
-    return similarity(G1, G2, eweight1=G1.ep.ew, eweight2=G2.ep.ew)
+    sim = similarity(G1, G2, eweight1=G1.ep.ew, eweight2=G2.ep.ew)
+    # print(sim)
+    return sim
 
 def m(G):
     return [G.m()]
 
 def total_w(G):
-    return [np.sum(G.ep.ew.fa)]
+    return np.sum(G.ep.ew.fa)
 
 def edges_w(G):
     return G.get_edges([G.ep.ew])
@@ -386,9 +418,9 @@ def ego_page_rank(G, only_optins=True):
 
 def page_rank_w(G, only_optins=True):
     if only_optins:
-        return np.array(pagerank(G).fa.astype('float'))[G.optins()]
+        return np.array(pagerank(G, weight=G.ep.ew).fa.astype('float'))[G.optins()]
     else:
-        return np.array(pagerank(G).fa.astype('float'))
+        return np.array(pagerank(G, weight=G.ep.ew).fa.astype('float'))
 
 def betweenness_w(G, only_optins=True):
     if only_optins:
@@ -398,9 +430,9 @@ def betweenness_w(G, only_optins=True):
 
 def eigenvector_w(G, only_optins=True):
     if only_optins:
-        return np.array(eigenvector(G)[1].fa.astype('float'))[G.optins()]
+        return np.array(eigenvector(G, weight=G.ep.ew)[1].fa.astype('float'))[G.optins()]
     else:
-        return np.array(eigenvector(G)[1].fa.astype('float'))
+        return np.array(eigenvector(G, weight=G.ep.ew)[1].fa.astype('float'))
 
 
 def density(G, only_optins=True):
@@ -432,6 +464,9 @@ def global_clustering_w(G, only_optins=True):
         return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))[0]
     else:
         return np.array(graph_tool.clustering.global_clustering(G,weight=G.ep.ew))[0]
+
+def num_triangles(G):
+    return len(strong_triangles2(G))
 
 def get_ego_network(G, v, prune=False):
     edges_v = G.get_out_edges(v)
@@ -521,10 +556,10 @@ def strong_triangles2(G):
 
     return tringles_arr
 
-def strong_triangles(G):
+def strong_triangles(G, threshold):
     triangles = []
     edges_w = G.ep.ew.fa.astype('int')
-    threshold = np.percentile(edges_w, 15) 
+    # threshold = np.percentile(edges_w, 15) 
     for c in gt.max_cliques(G):
         if len(c) == 3: 
             e1 = G.edge(c[0],c[1])
@@ -629,9 +664,13 @@ def strong_shortest_paths_random(graphs, max_k, num_sample_nodes, threshold):
             if all_g_belong_to_same_component:
 
                 for j in range(len(graph_list)):
+
+                    if not all_g_belong_to_same_component:
+                        break
                     
-                    s_path, _ = shortest_path(graph_list[j], u, v ) #, weights=graph_list[j].ep.ew) # testar se não for do mesmo componente
-                    cutoff = len(s_path)
+                    # s_path, _ = shortest_path(graph_list[j], u, v ) #, weights=graph_list[j].ep.ew) # testar se não for do mesmo componente
+                    # cutoff = len(s_path)
+                    cutoff = 1
                     
                     num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff ))
                     
@@ -639,28 +678,44 @@ def strong_shortest_paths_random(graphs, max_k, num_sample_nodes, threshold):
                         while num_shortest_paths < max_k:
                             cutoff += 1 
                             num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff )) 
+                            if cutoff > 30:
+                                all_g_belong_to_same_component = False
+                                break
+
+                if all_g_belong_to_same_component:
+
+                    for j in range(len(graph_list)):
+
+                        cutoff = 1
+                    
+                        num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff ))
+                        
+                        if num_shortest_paths < max_k:
+                            while num_shortest_paths < max_k:
+                                cutoff += 1 
+                                num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff )) 
 
                     # if num_shortest_paths > 10*max_k:
                     #     while num_shortest_paths > 10*max_k:
                     #         cutoff -= 1 
                     #         num_shortest_paths = sum(1 for _ in all_paths(graph_list[j], u, v, cutoff=cutoff ))
 
-                    paths = []
-                    for path in all_paths(graph_list[j], u, v, cutoff=cutoff):
-                        sum_of_w = 0 
-                        for i in range(len(path)-1):
-                            x = path[i]
-                            y = path[i+1]
-                            edge = graph_list[j].edge(x, y)
-                            if edge is not None:
-                                w = graph_list[j].ep.ew[edge]
-                                sum_of_w += w 
-                        paths.append(np.append(sum_of_w, path).astype('int').tolist()) 
-        
-                    all_paths_g[j].append(paths)
+                        paths = []
+                        for path in all_paths(graph_list[j], u, v, cutoff=cutoff):
+                            sum_of_w = 0 
+                            for i in range(len(path)-1):
+                                x = path[i]
+                                y = path[i+1]
+                                edge = graph_list[j].edge(x, y)
+                                if edge is not None:
+                                    w = graph_list[j].ep.ew[edge]
+                                    sum_of_w += w 
+                            paths.append(np.append(sum_of_w, path).astype('int').tolist()) 
+            
+                        all_paths_g[j].append(paths)
 
-                node_pairs.add(tuple_uv)
-                reamining_pair_of_nodes -= 1
+                    node_pairs.add(tuple_uv)
+                    reamining_pair_of_nodes -= 1
                 # num_shortest_paths = count_shortest_paths(g, u, v, weights=g.ep.ew)
 
     for j in range(len(all_paths_g)):

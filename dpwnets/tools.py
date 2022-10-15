@@ -179,9 +179,65 @@ def threshold_sampling(arr, eps, max_len, m):
 
     # return top_edges_after_filter, num_remaining_edges, non_zero_edges_w_filtered_mask
 
-
-
 def priority_sampling(arr, eps, max_len, m):
+
+    Ts = 2
+
+    variance = 100000
+    a = np.exp(-eps)
+
+    len_binomial = max_len - m
+
+    while True:
+        p = (a/((1+a)*Ts))*((1-(Ts+1)*(a**Ts) + Ts*(a**(Ts+1)))/(1-a)) + (a**(Ts+1))/(1+a)
+        k = np.random.binomial( len_binomial, p)
+        if k > m:
+            Ts += 1
+        # num_edges = np.sum( P > Ts ) + k
+        # if num_edges > 1.1*m:
+        #     Ts += 1
+        else:
+            Ts -= 1
+            break
+
+    p = (a/((1+a)*Ts))*((1-(Ts+1)*(a**Ts) + Ts*(a**(Ts+1)))/(1-a)) + (a**(Ts+1))/(1+a)
+    k = np.random.binomial( len_binomial, p)
+
+    rand_values = np.random.uniform(0,1,len(arr))
+    P = np.clip(arr/rand_values, 0, None)    # Priorities
+
+    weights = np.array(range(variance))
+    prob_mass = []
+    for w in weights:
+        if w <= Ts:
+            mass = ((w/Ts)*((1-a)*(a**(abs(w))))/(1+a))/p
+        else:
+            mass = (((1-a)*(a**(abs(w))))/(1+a))/p
+        prob_mass.append(mass)
+
+    zeros_edges_w_filtered = np.random.choice(list(range(variance)), k, p=prob_mass, replace=True )    
+    edges_after_filter = np.append(arr, zeros_edges_w_filtered)
+
+    rand_values = np.random.uniform(0,1,len(zeros_edges_w_filtered))
+    P = np.append(P, zeros_edges_w_filtered/rand_values)
+    
+    m_highest_priorities_mask = P.argsort()[::-1][:m]
+
+    non_zero_edges_w_to_keep_pos = np.sort(m_highest_priorities_mask[m_highest_priorities_mask < len(arr)])
+    zero_edges_w_to_keep_pos = np.sort(m_highest_priorities_mask[m_highest_priorities_mask >= len(arr)])
+
+    top_edges_after_filter = np.append(edges_after_filter[non_zero_edges_w_to_keep_pos], edges_after_filter[zero_edges_w_to_keep_pos])
+    if min(top_edges_after_filter) <= 0:
+        utils.error_msg('negative values in priority sampling')
+
+    non_zero_edges_w_filtered_mask = np.full(len(arr), False)
+    non_zero_edges_w_filtered_mask[non_zero_edges_w_to_keep_pos] = True
+
+    num_remaining_edges = np.sum(non_zero_edges_w_filtered_mask)
+
+    return top_edges_after_filter, num_remaining_edges, non_zero_edges_w_filtered_mask
+
+def priority_sampling_old(arr, eps, max_len, m):
 
     Ts = 2
 

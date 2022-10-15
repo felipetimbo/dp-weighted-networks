@@ -1,13 +1,9 @@
 
 import os
-import math
 import numpy as np
 import graph_tool as gt
 
-from dpwnets import utils
-from dpwnets import dp_mechanisms
-from dpwnets import tools
-
+from dpwnets import (utils, dp_mechanisms, tools, graphics)
 from metrics import (error_metrics, egocentric_metrics)
 
 from graph.wgraph import WGraph
@@ -64,12 +60,12 @@ class DPWeightedNets():
                         for r in range(self.runs):
                             utils.log_msg('....... RUN ' + str(r) + ' .......')   
                             
-                            ds = g_without_in_in.degrees() # degree sequence
+                            ds = g_without_in_in.degrees() # degree sequence 
                             ds_noisy = dp_mechanisms.geometric(ds, geom_prob_mass_e2)
                             ds_ajusted = tools.min_l2_norm_old(ds_noisy, np.sum(ds_noisy), num_steps=10)
-                            new_m = int(np.sum(ds_ajusted)/2)
+                            new_m = int(np.sum(ds_ajusted)/2) 
 
-                            utils.log_msg('priority sampling...')
+                            utils.log_msg('threshold sampling...')
 
                             edges_w = g_without_in_in.edges_w()
                             edges_w_noisy = dp_mechanisms.geometric(edges_w, geom_prob_mass_e1)
@@ -85,36 +81,37 @@ class DPWeightedNets():
                             created_edges_w = top_m_edges_w_noisy[num_remaining_edges:len(top_m_edges_w_noisy)]
                             created_edges_after_ps = np.concatenate((created_edges, np.array([created_edges_w]).T ), axis=1)
 
-                            all_edges_after_hpf = np.append(orig_edges_after_hpf, created_edges_after_ps, axis=0)
-                            g_priority_sampled = tools.build_g_from_edges(g, all_edges_after_hpf, add_optin_edges=False)
-
-                            utils.log_msg('adjusting degrees ...')
-
-                            edges_with_deg_seq_adjusted = tools.adjust_degree_sequence(g_priority_sampled, ds_ajusted)
-                            new_g = tools.build_g_from_edges(g, edges_with_deg_seq_adjusted, add_optin_edges=False)
+                            all_edges_after_ps = np.append(orig_edges_after_hpf, created_edges_after_ps, axis=0)
+                            
+                            # all_edges_w = all_edges_after_ps[:,2]
+                            # all_edges_w_adjusted = tools.min_l2_norm_old(all_edges_w, np.sum(edges_w))
+                            # all_edges = np.concatenate((all_edges_after_ps[:,[0,1]], np.array([all_edges_w_adjusted]).T ), axis=1)
+                            
+                            new_g = tools.build_g_from_edges(g, all_edges_after_ps, add_optin_edges=False)
 
                             utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_global_ps_final.graphml" % ( dataset , optin_method, optin_perc, e, r)     
-                            new_g.save(path_graph)                            
+                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_ps_baseline.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            new_g.save(path_graph)                             
 
 if __name__ == "__main__":
     datasets_names = [
-                      'high-school-contacts',
-                      'copenhagen-interaction',
-                      'reality-call',
-                      'contacts-dublin',
-                      'digg-reply',
-                    # 'enron',
-                    # 'wiki-talk'
-                    # 'dblp'
+                        'high-school-contacts',
+                        # 'copenhagen-interaction',
+                        #  'reality-call',
+                        # 'reality-call2',
+                        # 'contacts-dublin',
+                        # 'digg-reply',
+                        #  'enron',
+                        # 'wiki-talk',
+                        #  'dblp'
                     ]
 
-    optins_methods = ['affinity']
+    optins_methods = ['affinity'] 
     optins_perc = [.0]
 
     es = [ .5, 1, 2 ]
 
-    runs = 10
+    runs = 5
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
     exp.run()

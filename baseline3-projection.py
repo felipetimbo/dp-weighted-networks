@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     thetas = [ 13 ]
 
-    runs = 2
+    runs = 10
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, thetas, es, runs)
     exp.run()

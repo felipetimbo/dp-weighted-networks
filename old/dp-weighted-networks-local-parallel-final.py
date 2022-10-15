@@ -58,9 +58,9 @@ class DPWeightedNets():
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
                         # privacy budgets #
-                        e1 = 0.3*e # budget for perturb edge weights
-                        e2 = 0.3*e # budget for query node strength
-                        e3 = 0.4*e # budget for query degree 
+                        e1 = 0.45*e # budget for perturb edge weights
+                        e2 = 0.1*e # budget for query node strength
+                        e3 = 0.45*e # budget for query degree 
 
                         geom_prob_mass_e1 = dp_mechanisms.geom_prob_mass(e1)
                         geom_prob_mass_e2 = dp_mechanisms.geom_prob_mass(e2)

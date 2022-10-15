@@ -4,7 +4,7 @@ if __name__ == "__main__":
     datasets_names = [
                     'high-school-contacts',
                     # 'copenhagen-interaction',
-                     'reality-call', 
+                     'reality-call2', 
                     # 'contacts-dublin',
                     # 'digg-reply',
                     # 'wiki-talk',

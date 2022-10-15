@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     es = [ .1, .5, 1 ]
 
-    runs = 5
+    runs = 10
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
     exp.run()

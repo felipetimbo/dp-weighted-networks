@@ -61,7 +61,7 @@ class DPWeightedNets():
                             new_g = tools.build_g_from_edges(g, new_edges, allow_zero_edges_w=True)
 
                             utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_baseline.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_baseline4.graphml" % ( dataset , optin_method, optin_perc, e, r)     
                             new_g.save(path_graph)                            
 
 if __name__ == "__main__":
@@ -77,9 +77,9 @@ if __name__ == "__main__":
     optins_methods = ['affinity']
     optins_perc = [.2]
 
-    es = [ .1, 1, 2 ]
+    es = [ .1, .5, 1 ]
 
-    runs = 5
+    runs = 10
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
     exp.run()

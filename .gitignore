@@ -2,5 +2,7 @@ launch.json
 .history/*
 *.egg-info
 *.pyc
-env/
+venv/
 data/
+build/
+old/

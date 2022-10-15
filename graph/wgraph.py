@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 import multiprocessing
 
+from dpwnets import utils
+
 class WGraph(object):
 
     def __init__(self, path=None, G=None, prune=None, compute_distances=False):
@@ -199,6 +201,18 @@ class WGraph(object):
         mask_p[v] = True
         egonet = gt_.GraphView(G, vfilt=mask_p)
         return egonet
+
+    def print_statistics(self):
+        utils.log_msg('vertices:    %s' % self.n())
+        utils.log_msg('edges:       %s' % self.m())
+        utils.log_msg('max degree:  %s' % self.max_degree())
+        utils.log_msg('degrees avg: %s' % self.avg_degrees())
+        utils.log_msg('degrees dec: %s' % self.degrees_percentiles())
+        utils.log_msg('degrees qua: %s' % self.degrees_quartiles())
+        utils.log_msg('max edge_w:  %s' % self.max_edge_w())
+        utils.log_msg('edges_w avg: %s' % self.avg_edges_w())
+        utils.log_msg('edges_w dec: %s' % self.edges_w_percentiles())    
+        utils.log_msg('edges_w qua: %s' % self.edges_w_quartiles()) 
 
     def __getattr__(self, *args, **kwargs):
         return getattr(self.G, *args, **kwargs)

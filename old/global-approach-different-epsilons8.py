@@ -4,6 +4,7 @@ import math
 import numpy as np
 import graph_tool as gt
 from sklearn import neighbors
+import itertools
 
 from dpwnets import utils
 from dpwnets import dp_mechanisms
@@ -56,9 +57,13 @@ class DPWeightedNets():
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
                         # privacy budgets #
-                        e1 = 0.4*e # budget for perturb edge weights 
-                        e2 = 0.1*e # budget for query all node strengths 
-                        e3 = 0.5*e # budget for query degree sequence 
+                        # e1 = 0.3*e # budget for perturb edge weights 
+                        # e2 = 0.1*e # budget for query all node strengths 
+                        # e3 = 0.6*e # budget for query degree sequence 
+
+                        e1 = e[0] # budget for perturb edge weights 
+                        e2 = e[1] # budget for query all node strengths 
+                        e3 = e[2] # budget for query degree sequence 
 
                         geom_prob_mass_e1 = dp_mechanisms.geom_prob_mass(e1)
                         geom_prob_mass_e2_1 = dp_mechanisms.geom_prob_mass(e2) 
@@ -129,8 +134,8 @@ class DPWeightedNets():
 
 if __name__ == "__main__":
     datasets_names = [
-                    #   'high-school-contacts',
-                    #   'reality-call2',
+                    #    'high-school-contacts',
+                    #    'reality-call2',
                     #   'enron',
                        'dblp'
                     ]
@@ -140,13 +145,13 @@ if __name__ == "__main__":
                     # 'contacts-dublin',
                     # 'digg-reply',
                     # 'copenhagen-interaction',
-
+ 
     optins_methods = ['affinity'] 
     optins_perc = [.0] 
 
-    es = [ .1, .5, 1 ] 
+    es = [[0.4, 0.1, 0.5],[0.4, 0.2, 0.4],[0.4, 0.3, 0.3]]
 
-    runs = 10
+    runs = 2 
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs) 
     exp.run() 

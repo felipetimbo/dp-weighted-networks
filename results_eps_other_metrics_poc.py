@@ -77,17 +77,17 @@ class ResultsDPWeightedNets():
                                 # errors_list_3[ego_metric][error_metr] = []
                                    
                         for r in range(self.runs):    
-                            path_g1 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_baseline_final_hpf.graphml' % ( optin_method, optin_perc, e, r )))
+                            path_g1 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_ps_baseline.graphml' % ( optin_method, optin_perc, e, r )))
                             g1 = WGraph(path_g1)
 
-                            path_g2 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_baseline_final_ts.graphml' % ( optin_method, optin_perc, e, r )))
+                            path_g2 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ps1.graphml' % ( optin_method, optin_perc, e, r )))
                             g2 = WGraph(path_g2)
 
                             path_g3 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_global_ps2.graphml' % ( optin_method, optin_perc, e, r )))
                             g3 = WGraph(path_g3)
 
-                            path_g4 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_local_final_ps.graphml' % ( optin_method, optin_perc, e, r )))
-                            g4 = WGraph(path_g4)
+                            # path_g4 = os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'data', dataset, 'exp', 'graph_perturbed_%s_ins%s_e%s_r%s_local_final_ps.graphml' % ( optin_method, optin_perc, e, r )))
+                            # g4 = WGraph(path_g4)
 
                             for ego_metr in self.ego_metrics:
                                 if ego_metr == 'similarity':
@@ -100,8 +100,8 @@ class ResultsDPWeightedNets():
                                     value_3 = egocentric_metrics.similar(g, g3) 
                                     values_list_3[ego_metr].append(value_3)
 
-                                    value_4 = egocentric_metrics.similar(g, g4) 
-                                    values_list_4[ego_metr].append(value_4)
+                                    # value_4 = egocentric_metrics.similar(g, g4) 
+                                    # values_list_4[ego_metr].append(value_4)
 
                                 # ego_metric_pred_1 = egocentric_metrics.calculate(g1, ego_metr)
                                 # ego_metric_pred_2 = egocentric_metrics.calculate(g2, ego_metr)
@@ -117,8 +117,8 @@ class ResultsDPWeightedNets():
                                     value_3 = egocentric_metrics.calculate(g3, ego_metr )                   
                                     values_list_3[ego_metr].append(value_3)
 
-                                    value_4 = egocentric_metrics.calculate(g4, ego_metr )                   
-                                    values_list_4[ego_metr].append(value_4)
+                                    # value_4 = egocentric_metrics.calculate(g4, ego_metr )                   
+                                    # values_list_4[ego_metr].append(value_4)
 
                                 # utils.log_msg('g1 global %s %s = %s' % ( error_metr, ego_metr, error_1 ) )
 
@@ -141,8 +141,8 @@ class ResultsDPWeightedNets():
                                 ego_metric_mean_3 = np.mean( values_list_3[ego_metr] )
                                 values_3[ego_metr].append("{:.8f}".format(ego_metric_mean_3))  
 
-                                ego_metric_mean_4 = np.mean( values_list_4[ego_metr] )
-                                values_4[ego_metr].append("{:.8f}".format(ego_metric_mean_4))  
+                                # ego_metric_mean_4 = np.mean( values_list_4[ego_metr] )
+                                # values_4[ego_metr].append("{:.8f}".format(ego_metric_mean_4))  
                             else:
                                 ego_metric_mean_1 = np.mean( values_list_1[ego_metr])
                                 values_1[ego_metr].append("{:.2f}".format(ego_metric_mean_1) )
@@ -153,8 +153,8 @@ class ResultsDPWeightedNets():
                                 ego_metric_mean_3 = np.mean( values_list_3[ego_metr] )
                                 values_3[ego_metr].append("{:.2f}".format(ego_metric_mean_3))  
 
-                                ego_metric_mean_4 = np.mean( values_list_4[ego_metr] )
-                                values_4[ego_metr].append("{:.2f}".format(ego_metric_mean_4))  
+                                # ego_metric_mean_4 = np.mean( values_list_4[ego_metr] )
+                                # values_4[ego_metr].append("{:.2f}".format(ego_metric_mean_4))  
 
 
                                 # ego_metric_mean_3 = np.mean( errors_list_3[ego_metr][error_metr] )
@@ -168,20 +168,20 @@ class ResultsDPWeightedNets():
                         v1 = values_1[ego_metr]
                         v2 = values_2[ego_metr]
                         v3 = values_3[ego_metr]
-                        v4 = values_4[ego_metr]
+                        # v4 = values_4[ego_metr]
 
                         v12 = np.append(v1, v2, axis=0)
-                        v23 = np.append(v12, v3, axis=0)
-                        vs = np.append(v23, v4, axis=0)
+                        # v23 = np.append(v12, v3, axis=0)
+                        vs = np.append(v12, v3, axis=0)
 
                         # values_concatenated[ego_metr] = v12
                         values_concatenated[ego_metr] = vs
 
                     legends = [
-                                'high-pass-filter ', 
-                                'threshold sampling',
-                                'global approach',
-                                'local approach'
+                                'threshold sampling only ', 
+                                'threshold sampling adjusted',
+                                'global approach with ts adj',
+                                # 'local approach'
                                 ] 
 
                     header = ['metric', 'original']
@@ -207,9 +207,7 @@ class ResultsDPWeightedNets():
                             else:
                                 results[i][j] = values_concatenated[self.ego_metrics[i]][j-2]
                     
-                    # path_result = "./data/%s/results/graph_statistics_%s_%s.csv" % ( dataset, optin_method, optin_perc) 
-                    path_result = "./data/paper/statistics_%s_%s_%s.csv" % ( dataset, optin_method, optin_perc) 
-
+                    path_result = "./data/%s/results/graph_statistics_%s_%s.csv" % ( dataset, optin_method, optin_perc) 
                     df = pd.DataFrame(results) # .to_csv(path_result, header=header, index=False)
                     df.loc[-1] = header
                     df.index = df.index + 1  # shifting index
@@ -222,13 +220,13 @@ class ResultsDPWeightedNets():
 if __name__ == "__main__":
     datasets_names = [
                         #  'copenhagen-interaction',
-                        #    'high-school-contacts',
-                        #     'reality-call',
+                          'high-school-contacts',
+                        #    'reality-call',
                         #  'contacts-dublin',
                         #  'digg-reply', 
-                            # 'enron',
+                        #    'enron',
                         #   'wiki-talk', 
-                            'dblp'
+                        #    'dblp'
                       ] 
 
                     # 'wiki-talk',
@@ -246,15 +244,14 @@ if __name__ == "__main__":
                     # 'diameter_w',
                      'avg_shortest_path',
                      'avg_shortest_path_w',
-                    #  'avg_degree',
-                    #  'avg_edges_w', 
-                     'num_triangles',
-                     'global_clustering_w_all',
+                     'avg_degree',
+                     'avg_edges_w', 
+                    # 'global_clustering_w_all',
                     # 'graph_density',
                     'similarity'
                 ]
 
-    runs = 1
+    runs = 5
 
     exp = ResultsDPWeightedNets(datasets_names, optins_methods, optins_perc, es, ego_metrics, runs)
     exp.run()

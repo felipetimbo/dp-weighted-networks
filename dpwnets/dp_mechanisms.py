@@ -30,3 +30,10 @@ def geometric_mechanism(arr, eps, sensitivity=1):
     z = np.random.geometric(p, len(arr)) - np.random.geometric(p, len(arr))
     noisy_arr = arr + z
     return np.array(noisy_arr)
+
+def log_laplace_mechanism(arr, eps, sensitivity=2):
+    lap = np.random.laplace(loc=0, scale=sensitivity/eps, size=len(arr))
+    #  noisy_arr = np.around(np.clip( np.log(arr) + lap, 1, None )).astype(int)
+    noisy_arr = np.around(np.clip( arr * np.exp(lap) , 1, max(arr) )).astype(int)  # https://arxiv.org/pdf/2101.02957.pdf
+
+    return np.array(noisy_arr)

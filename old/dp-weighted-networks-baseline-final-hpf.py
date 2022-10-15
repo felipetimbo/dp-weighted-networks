@@ -3,7 +3,6 @@ import os
 import math
 import numpy as np
 import graph_tool as gt
-from sklearn import neighbors
 
 from dpwnets import utils
 from dpwnets import dp_mechanisms
@@ -56,13 +55,13 @@ class DPWeightedNets():
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
                         # privacy budgets #
-                        e1 = 0.4*e # budget for perturb edge weights 
-                        e2 = 0.1*e # budget for query all node strengths 
-                        e3 = 0.5*e # budget for query degree sequence 
+                        e1 = 0.9*e # budget for perturb edge weights
+                        # e2 = 0.3*e # budget for query node strength
+                        e3 = 0.1*e # budget for query degree sequence
 
                         geom_prob_mass_e1 = dp_mechanisms.geom_prob_mass(e1)
-                        geom_prob_mass_e2_1 = dp_mechanisms.geom_prob_mass(e2) 
-                        geom_prob_mass_e2_2 = dp_mechanisms.geom_prob_mass(e2, sensitivity=2)
+                        # geom_prob_mass_e2_1 = dp_mechanisms.geom_prob_mass(e2)
+                        # geom_prob_mass_e2_2 = dp_mechanisms.geom_prob_mass(e2, sensitivity=2)
                         geom_prob_mass_e3 = dp_mechanisms.geom_prob_mass(e3, sensitivity=2)
 
                         for r in range(self.runs):
@@ -73,11 +72,11 @@ class DPWeightedNets():
                             ds_ajusted = tools.min_l2_norm_old(ds_noisy, np.sum(ds_noisy), num_steps=10)
                             new_m = int(np.sum(ds_ajusted)/2)
 
-                            utils.log_msg('high pass filter...') 
+                            utils.log_msg('high pass filter...')
 
                             edges_w = g_without_in_in.edges_w()
                             edges_w_noisy = dp_mechanisms.geometric(edges_w, geom_prob_mass_e1)
-                            top_m_edges_w_noisy, num_remaining_edges, non_zero_edges_w_filtered_mask = tools.priority_sampling(edges_w_noisy, e1, len_all_edges_without_in_in, new_m)
+                            top_m_edges_w_noisy, num_remaining_edges, non_zero_edges_w_filtered_mask = tools.high_pass_filter(edges_w_noisy, e, len_all_edges_without_in_in, new_m)
 
                             edges_g_prime = g_without_in_in.get_edges()[non_zero_edges_w_filtered_mask]
                             edges_w_prime = top_m_edges_w_noisy[:num_remaining_edges]
@@ -91,62 +90,29 @@ class DPWeightedNets():
                             all_edges_after_hpf = np.append(orig_edges_after_hpf, created_edges_after_hpf, axis=0)
                             g_high_pass_filtered = tools.build_g_from_edges(g, all_edges_after_hpf, add_optin_edges=False)
 
-                            utils.log_msg('adjusting degrees ...')
+                            utils.log_msg('saving baseline ...')
+                            path_graph = "./data/%s/exp/graph_perturbed_%s_ins%s_e%s_r%s_baseline_final_hpf.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            g_high_pass_filtered.save(path_graph)  
 
-                            edges_with_deg_seq_adjusted = tools.adjust_degree_sequence(g_high_pass_filtered, ds_ajusted, non_optins_pos)
-                            g_degrees_adjusted = tools.build_g_from_edges(g, edges_with_deg_seq_adjusted, add_optin_edges=False)
-
-                            utils.log_msg('adjusting node strengths globally ...')
-
-                            nss = g_without_in_in.node_strengths() 
-                            nss_noisy = np.zeros(n) 
-                            nss_noisy[optins] = dp_mechanisms.geometric(nss[optins], geom_prob_mass_e2_1) 
-                            nss_noisy[optouts] = dp_mechanisms.geometric(nss[optouts], geom_prob_mass_e2_2) 
-                            nss_ajusted = tools.min_l2_norm_old(nss_noisy, np.sum(nss_noisy), num_steps=10) 
-
-                            # att_metric = []
-                            # for node in range(g.n()):
-                            #     neighbors_node = g_degrees_adjusted.get_out_neighbors(node)
-                            #     all_nodes = np.append(neighbors_node, node)
-                            #     att_metric.append( np.sum( nss_ajusted[all_nodes] ) )
-                            # att = np.array(att_metric)
-                            # att_or = g.sum_2_hop_edges()
-
-                            edges_deg_adjusted = g_degrees_adjusted.get_edges([g_degrees_adjusted.ep.ew])
-                            edges_w_globally_adjusted = tools.min_l2_norm_old(edges_deg_adjusted[:,2], np.sum(nss_noisy)/2, num_steps=10) 
-                            edges_globally_adjusted = np.concatenate((edges_deg_adjusted[:,[0,1]], np.array([edges_w_globally_adjusted]).T ), axis=1)
-
-                            new_g = tools.build_g_from_edges(g, edges_globally_adjusted) 
-
-                            # utils.log_msg('adjusting node strengths locally ...') 
-
-                            # final_edges = tools.adjust_edge_weights_based_on_ns(g_degrees_adjusted, nss_ajusted)
-                            # new_gl = tools.build_g_from_edges(g, final_edges)
-
-                            utils.log_msg('saving graph...')
-                            path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_global.graphml" % ( dataset , optin_method, optin_perc, e, r)     
-                            new_g.save(path_graph)                            
-
+                            
 if __name__ == "__main__":
     datasets_names = [
                     #   'high-school-contacts',
-                    #   'reality-call2',
-                    #   'enron',
-                       'dblp'
+                    #   'copenhagen-interaction'',
+                    #   'reality-call',
+                    #   'contacts-dublin',
+                    #   'digg-reply',
+                        # 'enron',
+                    #   'wiki-talk',
+                        'dblp'
                     ]
 
-                    # 'wiki-talk'
-                    # 'sx-stackoverflow',
-                    # 'contacts-dublin',
-                    # 'digg-reply',
-                    # 'copenhagen-interaction',
+    optins_methods = ['affinity']
+    optins_perc = [.0]
 
-    optins_methods = ['affinity'] 
-    optins_perc = [.0] 
-
-    es = [ .1, .5, 1 ] 
+    es = [ .1, .5, 1 ]
 
     runs = 10
 
-    exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs) 
-    exp.run() 
+    exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
+    exp.run()
