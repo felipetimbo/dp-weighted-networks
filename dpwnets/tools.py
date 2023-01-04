@@ -1452,7 +1452,7 @@ def get_levels_size(arr):
         levels_size_up.append(size_level_l_up)
 
         if l < len(non_zero_arr):
-            w = arr[l] # weight of element at position l
+            w = arr[l] # weight of element at position l # VETOR DE MPMATH
             num_columns_of_levels_size_down = len(levels_size_down) + w 
             a = convolution_matrix(levels_size_down, num_columns_of_levels_size_down, mode='valid')
             levels_size_down = a.sum(axis=0)
@@ -1462,7 +1462,8 @@ def get_levels_size(arr):
     if len(levels_size_down) < len(levels_size_up):
         levels_size_down = np.append(levels_size_down, [0] * (len(levels_size_up) - len(levels_size_down)))
     elif len(levels_size_down) > len(levels_size_up):
-        levels_size_up = np.append(levels_size_up, [0] * (len(levels_size_down) - len(levels_size_up)))
+        # levels_size_up = np.append(levels_size_up, [0] * (len(levels_size_down) - len(levels_size_up)))
+        levels_size_down = levels_size_down[:levels_len] #np.append(levels_size_up, [0] * (len(levels_size_down) - len(levels_size_up)))
 
     levels_size = levels_size_up + levels_size_down
     return levels_size
