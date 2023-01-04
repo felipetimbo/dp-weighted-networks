@@ -54,7 +54,7 @@ class DPWeightedNets():
                     for e in self.es:
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
 
-                        geom_prob_mass_e = dp_mechanisms.geom_prob_mass(e1
+                        geom_prob_mass_e = dp_mechanisms.geom_prob_mass(e) 
 
                         for r in range(self.runs):
                             utils.log_msg('....... RUN ' + str(r) + ' .......')   
