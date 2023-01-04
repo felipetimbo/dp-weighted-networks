@@ -7,14 +7,17 @@ import cvxpy as cp
 import graph_tool.spectral as sp
 import os 
 import itertools
+import mpmath
 
 import matplotlib
 import matplotlib.pyplot as plt
 
-from dpwnets import (utils, graphics)
-from graph.wgraph import WGraph
-from graph_tool.util import find_edge
-from graph_tool.generation import random_graph
+from scipy.linalg import convolution_matrix
+
+# from dpwnets import (utils, graphics)
+# from graph.wgraph import WGraph
+# from graph_tool.util import find_edge
+# from graph_tool.generation import random_graph
 
 np.random.seed(0)
 
@@ -850,35 +853,58 @@ def sample_random_edges_based_on_deg_seq(n, num_edges_to_be_sampled, existing_ed
     
     return picked_edges
 
-def adjust_degree_sequence_old2(g, degree_seq, non_optins_pos):
+def adjust_degree_sequence2(g, degree_seq, non_optins_pos):
     ds = degree_seq.copy()
 
     # m = int(np.sum(degree_seq)/2)
 
     df_edges = pd.DataFrame(data=g.get_edges([g.ep.ew]), columns=["s", "d", "w"], dtype="int")
-    df_edges = df_edges.sort_values(by=['w'], ascending=False)
+    df_edges = df_edges.sort_values(by=['w'], ascending=False).reset_index(drop=True)
     existing_edges = df_edges.to_numpy()
 
-    new_edges = set(map(tuple, []))  
+    # new_edges = set(map(tuple, []))  
     new_edges_list = np.empty((0,2), int) 
-    weights = []
+    weights = np.array([])
     existing_edges_to_keep = []
 
+    idx = np.array([], int)
+    for i in range(len(ds)):
+        idx = np.append(idx, df_edges[(df_edges['s'] == i) | (df_edges['d'] == i)].head(ds[i]).index)
+    
+    u, c = np.unique(idx, return_counts=True)
+    idx_to_keep = u[c > 1]
+
+    idx_to_keep_mask = np.zeros(g.m(), dtype=bool)
+    idx_to_keep_mask[idx_to_keep] = True 
+
+    new_edges_list = existing_edges[idx_to_keep_mask][:,(0,1)]
+    new_edges = set(map(tuple, new_edges_list))
+    weights = existing_edges[idx_to_keep_mask][:,2]
+
+    # existing_edges_to_keep = existing_edges[~idx_to_keep_mask][:,(0,1)]
+    existing_edges_to_keep = np.where(~idx_to_keep_mask)[0]
+
+    all_ids = new_edges_list.flatten()
+    unique, counts = np.unique(all_ids, return_counts=True)
+
+    for i in range(len(ds)):
+        ds[unique[i]] -= counts[i]
+
     # first step: top-down edges addition
-    for i in range(len(existing_edges)):
-        edge_i = existing_edges[i]
-        orig = edge_i[0]
-        dest = edge_i[1]
-        if ds[orig] != 0 and ds[dest] != 0:
-            new_edge = np.array([orig, dest])
-            new_edge.sort()
-            new_edges.add((new_edge[0],new_edge[1]))
-            new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
-            ds[new_edge[0]] -= 1
-            ds[new_edge[1]] -= 1
-            weights.append(edge_i[2])
-        else:    
-            existing_edges_to_keep.append(i)
+    # for i in range(len(existing_edges)):
+    #     edge_i = existing_edges[i]
+    #     orig = edge_i[0]
+    #     dest = edge_i[1]
+    #     if ds[orig] != 0 and ds[dest] != 0:
+    #         new_edge = np.array([orig, dest])
+    #         new_edge.sort()
+    #         new_edges.add((new_edge[0],new_edge[1]))
+    #         new_edges_list = np.append( new_edges_list, np.array([new_edge]) , axis=0 )
+    #         ds[new_edge[0]] -= 1
+    #         ds[new_edge[1]] -= 1
+    #         weights.append(edge_i[2])
+    #     else:    
+    #         existing_edges_to_keep.append(i)
     
     if (np.sum(ds) % 2) != 0:
         ds_positives = np.where(ds > 0)[0]
@@ -1414,7 +1440,34 @@ def adjust_edge_weights_based_on_ns3(g, node_strengths):
 
 #     print(1)
 
+def get_levels_size(arr):
+    m = len(arr)
+    non_zero_arr = np.array(arr)[np.nonzero(arr)[0]]
+    levels_len = 100
+    levels_size_up = []
+    levels_size_down = [1]
+    
+    for l in range(levels_len):
+        size_level_l_up = mpmath.binomial(l+m-1,m-1)
+        levels_size_up.append(size_level_l_up)
+
+        if l < len(non_zero_arr):
+            w = arr[l] # weight of element at position l
+            num_columns_of_levels_size_down = len(levels_size_down) + w 
+            a = convolution_matrix(levels_size_down, num_columns_of_levels_size_down, mode='valid')
+            levels_size_down = a.sum(axis=0)
+        # else:
+        #     levels_size_down = np.append(levels_size_down, 0)
+
+    if len(levels_size_down) < len(levels_size_up):
+        levels_size_down = np.append(levels_size_down, [0] * (len(levels_size_up) - len(levels_size_down)))
+    elif len(levels_size_down) > len(levels_size_up):
+        levels_size_up = np.append(levels_size_up, [0] * (len(levels_size_down) - len(levels_size_up)))
+
+    levels_size = levels_size_up + levels_size_down
+    return levels_size
+    # descomentar bibliotecas
 
 if __name__ == "__main__":
-    arr = [4.5, 6.51, 3.49, -7, 5, -3, 0, 1]
-    min_l2_norm_old(arr,19)
+    arr = [ 3, 1, 2, 0, 0, 0 ]
+    get_levels_size(arr)
