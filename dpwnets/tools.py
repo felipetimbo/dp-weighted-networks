@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 
 from scipy.linalg import convolution_matrix
 
-# from dpwnets import (utils, graphics)
-# from graph.wgraph import WGraph
-# from graph_tool.util import find_edge
-# from graph_tool.generation import random_graph
+from dpwnets import (utils, graphics)
+from graph.wgraph import WGraph
+from graph_tool.util import find_edge
+from graph_tool.generation import random_graph
 
 np.random.seed(0)
 
@@ -1440,35 +1440,3 @@ def adjust_edge_weights_based_on_ns3(g, node_strengths):
 
 #     print(1)
 
-def get_levels_size(arr):
-    m = len(arr)
-    non_zero_arr = np.array(arr)[np.nonzero(arr)[0]]
-    levels_len = 100
-    levels_size_up = []
-    levels_size_down = [1]
-    
-    for l in range(levels_len):
-        size_level_l_up = mpmath.binomial(l+m-1,m-1)
-        levels_size_up.append(size_level_l_up)
-
-        if l < len(non_zero_arr):
-            w = arr[l] # weight of element at position l # VETOR DE MPMATH
-            num_columns_of_levels_size_down = len(levels_size_down) + w 
-            a = convolution_matrix(levels_size_down, num_columns_of_levels_size_down, mode='valid')
-            levels_size_down = a.sum(axis=0)
-        # else:
-        #     levels_size_down = np.append(levels_size_down, 0)
-
-    if len(levels_size_down) < len(levels_size_up):
-        levels_size_down = np.append(levels_size_down, [0] * (len(levels_size_up) - len(levels_size_down)))
-    elif len(levels_size_down) > len(levels_size_up):
-        # levels_size_up = np.append(levels_size_up, [0] * (len(levels_size_down) - len(levels_size_up)))
-        levels_size_down = levels_size_down[:levels_len] #np.append(levels_size_up, [0] * (len(levels_size_down) - len(levels_size_up)))
-
-    levels_size = levels_size_up + levels_size_down
-    return levels_size
-    # descomentar bibliotecas
-
-if __name__ == "__main__":
-    arr = [ 3, 1, 2, 0, 0, 0 ]
-    get_levels_size(arr)
