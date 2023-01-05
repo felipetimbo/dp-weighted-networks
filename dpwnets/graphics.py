@@ -39,8 +39,7 @@ def line_plot2(x, ys, path=None, line_legends=None, legend_path=None,
             #   colors = ['#000000', '#360CE8', '#4ECE00', '#FF0000', '#FF69B4', '#FFFF00', '#00009F', '#F3F0F0', '#AF10E0', '#F01F0F'],
               colors = ['#935806', '#a08214', '#bdb863', '#cce0b6', '#d89aef', '#92abf9', '#7073ac', '#442788', '#AF10E0', '#F01F0F'],
               markers = ['d','x','1','+','2','|','o','v','d','1'],
-              figsize=(9, 5),
-              ylim=None):
+              ylim=None, xlim=None, figsize=(9, 5)):
 
     fig, ax = plt.subplots(figsize=figsize, tight_layout=True)
 
@@ -80,6 +79,8 @@ def line_plot2(x, ys, path=None, line_legends=None, legend_path=None,
         ax.set_title(title)
     if ylim is not None:
         ax.set_ylim(ylim)
+    if xlim is not None:
+        ax.set_xlim(xlim)
     ax.grid(True)
     
     if path:
@@ -91,6 +92,7 @@ def line_plot2(x, ys, path=None, line_legends=None, legend_path=None,
         plt.show()
     plt.clf()
     plt.close()
+   
 
 def line_plot3(x, ys, path=None, line_legends=None, legend_path=None, 
               xlabel=None, ylabel=None, title=None, xlog=False, ylog=False,
