@@ -3,10 +3,12 @@ import os
 import math
 import numpy as np
 import graph_tool as gt
+import mpmath
 
 from dpwnets import utils
 from dpwnets import dp_mechanisms
 from dpwnets import tools
+from dpwnets import graphics
 
 from metrics import (error_metrics, egocentric_metrics)
 
@@ -51,17 +53,52 @@ class DPWeightedNets():
 
                     # len_all_edges_without_in_in = int( ( g.n() * (g.n()-1))/2 - (len(optins) * (len(optins)-1))/2 )
 
+                    edges_w = g_without_in_in.edges_w()
+                    num_total_edges = int(g_without_in_in.n()*(g_without_in_in.n()-1)/2)
+                    all_edges_w = np.append(edges_w, [0] * (num_total_edges - len(edges_w)))
+
+                    all_edges_w = np.sort( np.random.choice(all_edges_w, 100, replace=False) )[::-1]
+
+                    utils.log_msg('computing levels...')
+                    levels_size = dp_mechanisms.get_levels_size(all_edges_w)
+
+                    picked_levels = []
+                    normalized_prob_masses = []
+                    graphic_pos = np.linspace(0, len(levels_size)-2, num=1000, dtype=int)
+
                     for e in self.es:
                         utils.log_msg('******* eps = ' + str(e) + ' *******')
-
-                        geom_prob_mass_e = dp_mechanisms.geom_prob_mass(e1
 
                         for r in range(self.runs):
                             utils.log_msg('....... RUN ' + str(r) + ' .......')   
                             
-                            utils.log_msg('exponential...')
+                            utils.log_msg('computing probability mass...')
+                            prob_mass = dp_mechanisms.compute_probability_mass(levels_size, e)
 
-                            edges_w = g_without_in_in.edges_w()
+                            utils.log_msg('running exponential...')
+                            picked_level, normalized_prob_mass = dp_mechanisms.exponential_mechanism(prob_mass)
+
+                            normalized_prob_masses.append( np.array(normalized_prob_mass)[graphic_pos])
+                            picked_levels.append(picked_level)
+                            
+                    path_graphic = "./data/%s/levels/prob_mass_only_up.png" % ( dataset )
+
+                    legends = [
+                                '$\epsilon$=0.1',
+                                '$\epsilon$=0.5',
+                                '$\epsilon$=1.0'
+                            ]
+
+                    # graphics.line_plot2( np.array(list(range(1, len(levels_size))))[graphic_pos], normalized_prob_masses,
+                    #                         xlabel='level', ylabel= 'prob. mass', ylog=True, # ylim=(min(normalized_prob_mass), None),
+                    #                         path=path_graphic, line_legends=legends, figsize=(10, 5))
+
+                    graphics.line_plot2( np.array(list(range(1, len(levels_size))))[graphic_pos], normalized_prob_masses,
+                                            xlabel='level', ylabel= 'prob. mass', ylog=True, xlim=(0, 25000),
+                                            path=path_graphic, line_legends=legends, figsize=(10, 5), colors = ['#000000', '#FF0000', '#0000FF'])
+
+                    print(picked_levels) 
+
 
                             # group_output
                             # edges_w_noisy = dp_mechanisms.geometric(edges_w, geom_prob_mass_e)
@@ -79,9 +116,9 @@ class DPWeightedNets():
                             # all_edges_after_ts = np.append(orig_edges_after_hpf, created_edges_after_ts, axis=0)
                             # g_sampled = tools.build_g_from_edges(g, all_edges_after_ts, add_optin_edges=False)
 
-                            utils.log_msg('saving baseline ...')
-                            path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_baseline5.graphml" % ( dataset , optin_method, optin_perc, e, r)     
-                            g_sampled.save(path_graph)  
+                            # utils.log_msg('saving baseline ...')
+                            # path_graph = "./data/%s/exp/%s_ins%s_e%s_r%s_baseline5.graphml" % ( dataset , optin_method, optin_perc, e, r)     
+                            # g_sampled.save(path_graph)  
 
                             
 if __name__ == "__main__":
@@ -97,7 +134,7 @@ if __name__ == "__main__":
 
     es = [ .1, .5, 1 ]
 
-    runs = 10
+    runs = 1
 
     exp = DPWeightedNets(datasets_names, optins_methods, optins_perc, es, runs)
     exp.run()
