@@ -18,6 +18,7 @@ from dpwnets import (utils, graphics)
 from graph.wgraph import WGraph
 from graph_tool.util import find_edge
 from graph_tool.generation import random_graph
+from graph_tool.generation import complete_graph
 
 np.random.seed(0)
 
@@ -1149,6 +1150,56 @@ def sample_random_edges(n, num_edges_to_be_sampled, existing_edges, non_optins_p
     
     return picked_edges
 
+def sample_random_edges_inverse(n, num_edges_to_be_sampled, existing_edges):
+    utils.log_msg('building complete graph')
+    comp_graph = complete_graph(n)
+
+    utils.log_msg('building complete edges')
+    complete_edges = comp_graph.get_edges()
+
+    del comp_graph
+
+    utils.log_msg('deleting existing edges')
+    idx_non_zero_edges = np.array([], dtype=int)
+    for e in existing_edges:
+        e.sort()
+        index = int((e[0]*(2*(n-1)-e[0]+1))/2 + e[1] - e[0] - 1)
+        idx_non_zero_edges = np.append(idx_non_zero_edges, index)
+
+    zero_edges_mask = np.ones(int(n*(n-1)/2), dtype=bool)
+    zero_edges_mask[idx_non_zero_edges] = False
+    new_zero_edges_list = complete_edges[zero_edges_mask]
+
+    del complete_edges
+    del zero_edges_mask
+    del idx_non_zero_edges
+
+    # new_zero_edges_without_existing_edges = set(map(tuple, complete_edges)).difference(existing_edges)
+    # new_zero_edges_list = np.array(list(new_zero_edges_without_existing_edges))
+
+    # for edge in g.iter_edges():
+    #    comp_graph.remove_edge(edge)
+
+    utils.log_msg('removing edges to get the desired number ')
+    num_edges_to_be_removed = int(n*(n-1)/2) - len(existing_edges) - num_edges_to_be_sampled
+
+    edges_to_be_removed_pos = np.array(np.random.choice(len(new_zero_edges_list), num_edges_to_be_removed, replace=False)) 
+    edges_to_be_removed_mask = np.ones(len(new_zero_edges_list), dtype=bool)
+    edges_to_be_removed_mask[edges_to_be_removed_pos] = False
+
+    # new_zero_edges_final = new_zero_edges_list[edges_to_be_removed_mask]
+
+    del edges_to_be_removed_pos
+    # del new_zero_edges_list
+    # del edges_to_be_removed_mask
+
+    # if len(new_zero_edges_final) != num_edges_to_be_sampled:
+    #     utils.error_msg('problem in sampling graph')
+    #     # num_exceeding_edges = new_zero_edges_final - num_edges_to_be_sampled
+    #     # new_zero_edges_final = new_zero_edges_final[num_exceeding_edges:]
+
+    return new_zero_edges_list[edges_to_be_removed_mask]
+
 def mean_of_duplicated_edges(edges):
     df_edges = pd.DataFrame(data=edges, columns=["s", "d", "w"], dtype="int")
 
@@ -1200,20 +1251,47 @@ def build_g_from_edges(g, new_edges, allow_zero_edges_w=False, add_optin_edges=T
 
     # selection of only edges with weigth != 0
     if not allow_zero_edges_w:
-        edges_w = new_edges[:,2]
-        non_zero_edges_w_mask = edges_w != 0
+        # edges_w = new_edges[:,2]
+        non_zero_edges_w_mask = new_edges[:,2] != 0
         edges_to_be_added = np.append(edges_in_in, new_edges[non_zero_edges_w_mask], axis=0) 
     else:
         edges_to_be_added = np.append(edges_in_in, new_edges, axis=0) 
 
     df_edges = pd.DataFrame(data=edges_to_be_added.astype('int'), columns=["s", "d", "w"])
+
+    del edges_to_be_added
+
     df_edges['or'] = df_edges[['s','d']].min(axis=1)
     df_edges['de'] = df_edges[['s','d']].max(axis=1)
     df_edges = df_edges.sort_values(by=['or', 'de'])
     df_edges = df_edges[['or','de','w']]
     edges_to_be_added_sorted = df_edges.to_numpy()
 
+    del df_edges
+
     new_g.add_edge_list(edges_to_be_added_sorted, eprops=[new_g.ep.ew])
+
+    del edges_to_be_added_sorted
+
+    # if new_g.m() != ( len( edges_to_be_added) + len(edges_in_in) ):
+    #     utils.error_msg('problem in sampling graph')
+
+    return new_g   
+
+def build_g_from_edges_without_sorting(g, new_edges):
+
+    new_g = WGraph()
+    new_g.add_vertex(n=g.n())
+    optin = new_g.new_vertex_property('bool')
+    optin.fa = g.vp.optin.fa
+    new_g.vertex_properties['optin'] = optin
+
+    ew = new_g.new_edge_property('int')
+    new_g.edge_properties['ew'] = ew
+
+    new_g.add_edge_list(new_edges, eprops=[new_g.ep.ew])
+
+    del new_edges
 
     # if new_g.m() != ( len( edges_to_be_added) + len(edges_in_in) ):
     #     utils.error_msg('problem in sampling graph')
